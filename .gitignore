@@ -1,0 +1,26 @@
+# Compiled files
+*.o
+mle_estimator
+*.out
+*.exe
+
+# Output files
+output/*.txt
+output/*.png
+
+# Python virtual environment
+python/venv/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+build/
+dist/
