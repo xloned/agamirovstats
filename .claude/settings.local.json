@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gtimeout 15 ./mle_estimator:*)",
+      "Bash(echo:*)",
+      "Bash(perl -e 'alarm 10; exec \"\"./mle_estimator\"\"')",
+      "Bash(python/venv/bin/python:*)",
+      "Bash(open:*)",
+      "Bash(make)",
+      "Bash(git init:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
