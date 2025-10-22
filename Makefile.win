@@ -1,0 +1,71 @@
+# Makefile для Windows (MinGW/MSYS2)
+
+# Компилятор и флаги
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -I./include
+LDFLAGS = -lboost_math_tr1
+
+# Директории
+SRC_DIR = src
+INCLUDE_DIR = include
+OUTPUT_DIR = output
+
+# Исходные файлы
+SOURCES = main.cpp \
+          $(SRC_DIR)\boost_distributions.cpp \
+          $(SRC_DIR)\matrix_operations.cpp \
+          $(SRC_DIR)\nelder_mead.cpp \
+          $(SRC_DIR)\mle_methods.cpp \
+          $(SRC_DIR)\confidence_intervals.cpp
+
+# Объектные файлы
+OBJECTS = $(SOURCES:.cpp=.o)
+
+# Исполняемый файл
+TARGET = mle_estimator.exe
+
+# Цель по умолчанию
+all: directories $(TARGET)
+
+# Создание необходимых директорий
+directories:
+	@if not exist $(OUTPUT_DIR) mkdir $(OUTPUT_DIR)
+
+# Линковка
+$(TARGET): $(OBJECTS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+	@echo Сборка завершена: $(TARGET)
+
+# Компиляция объектных файлов
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Очистка
+clean:
+	@del /Q $(OBJECTS) $(TARGET) 2>NUL
+	@del /Q $(OUTPUT_DIR)\*.txt 2>NUL
+	@echo Очистка выполнена
+
+# Очистка только объектных файлов
+clean-obj:
+	@del /Q $(OBJECTS) 2>NUL
+	@echo Объектные файлы удалены
+
+# Запуск программы
+run: $(TARGET)
+	$(TARGET)
+
+# Полная очистка и пересборка
+rebuild: clean all
+
+# Помощь
+help:
+	@echo Доступные команды:
+	@echo   make              - Сборка проекта
+	@echo   make run          - Сборка и запуск
+	@echo   make clean        - Удаление скомпилированных файлов
+	@echo   make clean-obj    - Удаление только объектных файлов
+	@echo   make rebuild      - Полная пересборка
+	@echo   make help         - Показать эту справку
+
+.PHONY: all clean clean-obj run rebuild help directories
