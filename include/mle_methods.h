@@ -5,13 +5,15 @@
 
 // Структура для хранения результатов MLE
 struct MLEResult {
-    std::vector<double> parameters;  // оценки параметров
-    double** covariance;             // ковариационная матрица
-    std::vector<double> std_errors;  // стандартные ошибки
-    double log_likelihood;           // логарифм функции правдоподобия
-    int iterations;                  // число итераций
-    bool converged;                  // флаг сходимости
-    int cov_size;                    // размер ковариационной матрицы
+    std::vector<double> parameters;        // оценки параметров
+    std::vector<double> initial_parameters; // начальные оценки параметров
+    double** covariance;                   // ковариационная матрица
+    std::vector<double> std_errors;        // стандартные ошибки
+    double log_likelihood;                 // логарифм функции правдоподобия
+    double initial_log_likelihood;         // начальное значение log-likelihood
+    int iterations;                        // число итераций
+    bool converged;                        // флаг сходимости
+    int cov_size;                          // размер ковариационной матрицы
 };
 
 // Целевая функция для оптимизации (нормальное распределение)
@@ -34,13 +36,8 @@ MLEResult mle_normal_complete(const std::vector<double>& data);
 // MLE для распределения Вейбулла (полные данные)
 MLEResult mle_weibull_complete(const std::vector<double>& data);
 
-// MLS для нормального распределения (цензурированные данные)
-MLEResult mls_normal_censored(const std::vector<double>& data, 
-                               const std::vector<int>& censored);
-
-// MLS для распределения Вейбулла (цензурированные данные)
-MLEResult mls_weibull_censored(const std::vector<double>& data,
-                                const std::vector<int>& censored);
+// MLS для нормального распределения (ТОЛЬКО полные данные, через метод Дэйвида - ordern)
+MLEResult mls_normal_complete(const std::vector<double>& data);
 
 // Вывод результатов MLE
 void print_mle_result(const MLEResult& result, const char* method_name);

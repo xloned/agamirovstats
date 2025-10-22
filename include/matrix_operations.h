@@ -1,24 +1,60 @@
 #ifndef MATRIX_OPERATIONS_H
 #define MATRIX_OPERATIONS_H
 
-// Операции с матрицами используя двумерные массивы
+#include <boost/numeric/ublas/matrix.hpp>
+#include <boost/numeric/ublas/vector.hpp>
+#include <boost/numeric/ublas/io.hpp>
 
-// Обращение матрицы (метод Гаусса)
-double** InverseMatrix(double** a, int n);
+namespace ublas = boost::numeric::ublas;
 
-// Транспонирование матрицы
-double** TransMatrix(int m, int n, double** a);
+// Типы для матриц и векторов через Boost.uBLAS
+typedef ublas::matrix<double> Matrix;
+typedef ublas::vector<double> Vector;
 
-// Умножение матриц
-double** MultiplyMatrix(int rowsa, int colsa, int rowsb, int colsb, double** a, double** b);
+/**
+ * Создание матрицы заданного размера, инициализированной нулями
+ * @param rows - количество строк
+ * @param cols - количество столбцов
+ * @return матрица размером rows x cols
+ */
+Matrix createMatrix(int rows, int cols);
 
-// Освобождение памяти
-void clearMemory(double** a, int n);
+/**
+ * Транспонирование матрицы
+ * @param a - исходная матрица размером m x n
+ * @return транспонированная матрица размером n x m
+ */
+Matrix TransMatrix(const Matrix& a);
 
-// Вывод матрицы
-void printMatrix(double** a, int rows, int cols, const char* name);
+/**
+ * Умножение двух матриц
+ * @param a - первая матрица
+ * @param b - вторая матрица
+ * @return произведение матриц a * b
+ */
+Matrix MultiplyMatrix(const Matrix& a, const Matrix& b);
 
-// Создание матрицы
-double** createMatrix(int rows, int cols);
+/**
+ * Обращение квадратной матрицы методом Гаусса-Жордана
+ * @param a - исходная квадратная матрица
+ * @return обратная матрица
+ */
+Matrix InverseMatrix(const Matrix& a);
+
+/**
+ * Вывод матрицы на экран
+ * @param a - матрица для вывода
+ * @param name - имя матрицы для отображения
+ */
+void printMatrix(const Matrix& a, const char* name);
+
+/**
+ * Устаревшая функция для совместимости со старым кодом
+ * Теперь ничего не делает, так как Boost.uBLAS управляет памятью автоматически
+ */
+inline void clearMemory(double** a, int n) {
+    // Пустая функция для обратной совместимости
+    // Boost.uBLAS автоматически управляет памятью
+}
 
 #endif // MATRIX_OPERATIONS_H

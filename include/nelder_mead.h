@@ -13,12 +13,27 @@ struct ne_simp {
     std::vector<int> nsample;       // размеры подвыборок
 };
 
+// Структура для результата оптимизации Nelder-Mead
+struct NelderMeadResult {
+    std::vector<double> parameters; // оптимальные параметры
+    int iterations;                 // количество итераций
+    bool converged;                 // флаг сходимости
+    double final_value;            // финальное значение целевой функции
+};
+
 // Глобальная переменная для передачи данных в функцию оптимизации
 extern ne_simp nesm;
 
 // Функция оптимизации методом Nelder-Mead
 // Возвращает вектор оптимальных параметров
 std::vector<double> neldermead(
+    std::vector<double>& x0,                              // начальная точка
+    double eps,                                           // точность
+    std::function<double(std::vector<double>)> func      // целевая функция
+);
+
+// Функция оптимизации методом Nelder-Mead с детальной информацией
+NelderMeadResult neldermead_detailed(
     std::vector<double>& x0,                              // начальная точка
     double eps,                                           // точность
     std::function<double(std::vector<double>)> func      // целевая функция
