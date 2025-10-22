@@ -17,7 +17,8 @@ SOURCES = main.cpp \
           $(SRC_DIR)/matrix_operations.cpp \
           $(SRC_DIR)/nelder_mead.cpp \
           $(SRC_DIR)/mle_methods.cpp \
-          $(SRC_DIR)/confidence_intervals.cpp
+          $(SRC_DIR)/confidence_intervals.cpp \
+          $(SRC_DIR)/order.cpp
 
 # Объектные файлы
 OBJECTS = $(SOURCES:.cpp=.o)

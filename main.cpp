@@ -132,14 +132,13 @@ int main() {
     cout << "\n";
     print_separator("СИСТЕМА АВТОМАТИЧЕСКОЙ ОЦЕНКИ ПАРАМЕТРОВ РАСПРЕДЕЛЕНИЙ");
     cout << "\nПрограмма выполняет оценку параметров для:" << endl;
-    cout << "  1. Нормального распределения (полные данные)" << endl;
-    cout << "  2. Распределения Вейбулла (полные данные)" << endl;
-    cout << "  3. Нормального распределения (цензурированные данные)" << endl;
-    cout << "  4. Распределения Вейбулла (цензурированные данные)" << endl;
-    cout << "  5. Доверительные интервалы и распределение Стьюдента" << endl;
+    cout << "  1. Нормального распределения - MLE (полные данные)" << endl;
+    cout << "  2. Нормального распределения - MLS через метод Агамирова (полные данные)" << endl;
+    cout << "  3. Распределения Вейбулла - MLE (полные данные)" << endl;
+    cout << "  4. Доверительные интервалы и персентили" << endl;
 
-    // ==================== 1. НОРМАЛЬНОЕ РАСПРЕДЕЛЕНИЕ (полные данные) ====================
-    print_separator("1. НОРМАЛЬНОЕ РАСПРЕДЕЛЕНИЕ - ПОЛНЫЕ ДАННЫЕ");
+    // ==================== 1. НОРМАЛЬНОЕ РАСПРЕДЕЛЕНИЕ MLE (полные данные) ====================
+    print_separator("1. НОРМАЛЬНОЕ РАСПРЕДЕЛЕНИЕ - MLE (ПОЛНЫЕ ДАННЫЕ)");
 
     string normal_file = "input/data_normal.txt";
     vector<double> normal_data = read_data(normal_file);
@@ -148,19 +147,33 @@ int main() {
         print_data_statistics(normal_data, "нормального распределения");
 
         cout << "\nВыполняется MLE для нормального распределения..." << endl;
-        MLEResult result_normal = mle_normal_complete(normal_data);
+        MLEResult result_normal_mle = mle_normal_complete(normal_data);
 
-        print_mle_result(result_normal, "MLE Нормальное распределение");
-        save_mle_result(result_normal, "output/mle_normal_complete.txt", normal_data, vector<int>());
+        print_mle_result(result_normal_mle, "MLE Нормальное распределение");
+        save_mle_result(result_normal_mle, "output/mle_normal_complete.txt", normal_data, vector<int>());
 
-        free_mle_result(result_normal);
+        free_mle_result(result_normal_mle);
         cout << "Результаты сохранены в output/mle_normal_complete.txt" << endl;
     } else {
         cerr << "Ошибка: не удалось загрузить данные для нормального распределения" << endl;
     }
 
-    // ==================== 2. РАСПРЕДЕЛЕНИЕ ВЕЙБУЛЛА (полные данные) ====================
-    print_separator("2. РАСПРЕДЕЛЕНИЕ ВЕЙБУЛЛА - ПОЛНЫЕ ДАННЫЕ");
+    // ==================== 2. НОРМАЛЬНОЕ РАСПРЕДЕЛЕНИЕ MLS (полные данные) ====================
+    print_separator("2. НОРМАЛЬНОЕ РАСПРЕДЕЛЕНИЕ - MLS МЕТОД АГАМИРОВА (ПОЛНЫЕ ДАННЫЕ)");
+
+    if (!normal_data.empty()) {
+        cout << "\nВыполняется MLS (метод Агамирова - ordern) для нормального распределения..." << endl;
+        MLEResult result_normal_mls = mls_normal_complete(normal_data);
+
+        print_mle_result(result_normal_mls, "MLS Нормальное распределение (метод Агамирова)");
+        save_mle_result(result_normal_mls, "output/mls_normal_complete.txt", normal_data, vector<int>());
+
+        free_mle_result(result_normal_mls);
+        cout << "Результаты сохранены в output/mls_normal_complete.txt" << endl;
+    }
+
+    // ==================== 3. РАСПРЕДЕЛЕНИЕ ВЕЙБУЛЛА (полные данные) ====================
+    print_separator("3. РАСПРЕДЕЛЕНИЕ ВЕЙБУЛЛА - MLE (ПОЛНЫЕ ДАННЫЕ)");
 
     string weibull_file = "input/data_weibull.txt";
     vector<double> weibull_data = read_data(weibull_file);
@@ -180,56 +193,8 @@ int main() {
         cerr << "Ошибка: не удалось загрузить данные для распределения Вейбулла" << endl;
     }
 
-    // ==================== 3. НОРМАЛЬНОЕ РАСПРЕДЕЛЕНИЕ (цензурированные данные) ====================
-    print_separator("3. НОРМАЛЬНОЕ РАСПРЕДЕЛЕНИЕ - ЦЕНЗУРИРОВАННЫЕ ДАННЫЕ");
-
-    string normal_censored_file = "input/data_censored_normal.txt";
-    vector<double> normal_censored_data;
-    vector<int> normal_censored_ind;
-    read_censored_data(normal_censored_file, normal_censored_data, normal_censored_ind);
-
-    if (!normal_censored_data.empty()) {
-        print_data_statistics(normal_censored_data, "цензурированных данных (нормальное)");
-
-        cout << "\nВыполняется MLS для нормального распределения с цензурированием..." << endl;
-        MLEResult result_normal_cens = mls_normal_censored(normal_censored_data, normal_censored_ind);
-
-        print_mle_result(result_normal_cens, "MLS Нормальное распределение (цензурированные)");
-        save_mle_result(result_normal_cens, "output/mls_normal_censored.txt",
-                        normal_censored_data, normal_censored_ind);
-
-        free_mle_result(result_normal_cens);
-        cout << "Результаты сохранены в output/mls_normal_censored.txt" << endl;
-    } else {
-        cerr << "Ошибка: не удалось загрузить цензурированные данные (нормальное)" << endl;
-    }
-
-    // ==================== 4. РАСПРЕДЕЛЕНИЕ ВЕЙБУЛЛА (цензурированные данные) ====================
-    print_separator("4. РАСПРЕДЕЛЕНИЕ ВЕЙБУЛЛА - ЦЕНЗУРИРОВАННЫЕ ДАННЫЕ");
-
-    string weibull_censored_file = "input/data_censored_weibull.txt";
-    vector<double> weibull_censored_data;
-    vector<int> weibull_censored_ind;
-    read_censored_data(weibull_censored_file, weibull_censored_data, weibull_censored_ind);
-
-    if (!weibull_censored_data.empty()) {
-        print_data_statistics(weibull_censored_data, "цензурированных данных (Вейбулл)");
-
-        cout << "\nВыполняется MLS для распределения Вейбулла с цензурированием..." << endl;
-        MLEResult result_weibull_cens = mls_weibull_censored(weibull_censored_data, weibull_censored_ind);
-
-        print_mle_result(result_weibull_cens, "MLS Распределение Вейбулла (цензурированные)");
-        save_mle_result(result_weibull_cens, "output/mls_weibull_censored.txt",
-                        weibull_censored_data, weibull_censored_ind);
-
-        free_mle_result(result_weibull_cens);
-        cout << "Результаты сохранены в output/mls_weibull_censored.txt" << endl;
-    } else {
-        cerr << "Ошибка: не удалось загрузить цензурированные данные (Вейбулл)" << endl;
-    }
-
-    // ==================== 5. ДОВЕРИТЕЛЬНЫЕ ИНТЕРВАЛЫ ====================
-    print_separator("5. ДОВЕРИТЕЛЬНЫЕ ИНТЕРВАЛЫ И РАСПРЕДЕЛЕНИЕ СТЬЮДЕНТА");
+    // ==================== 4. ДОВЕРИТЕЛЬНЫЕ ИНТЕРВАЛЫ ====================
+    print_separator("4. ДОВЕРИТЕЛЬНЫЕ ИНТЕРВАЛЫ И ПЕРСЕНТИЛИ");
 
     // Используем данные нормального распределения для вычисления доверительных интервалов
     if (!normal_data.empty()) {
@@ -304,9 +269,6 @@ int main() {
     cout << "  - Визуализация MLE для распределения Вейбулла..." << endl;
     run_python_script("plot_weibull.py", "mle");
 
-    cout << "  - Визуализация MLS для распределения Вейбулла..." << endl;
-    run_python_script("plot_weibull.py", "mls");
-
     cout << "  - Визуализация распределения Стьюдента (3 графика)..." << endl;
     run_python_script("plot_t_distribution.py");
 
@@ -315,7 +277,6 @@ int main() {
     cout << "  - output/plot_mle_normal.png" << endl;
     cout << "  - output/plot_mls_normal.png" << endl;
     cout << "  - output/plot_mle_weibull.png" << endl;
-    cout << "  - output/plot_mls_weibull.png" << endl;
     cout << "  - output/plot_t_varying_df.png (неизвестная σ)" << endl;
     cout << "  - output/plot_normal_varying_sigma.png (известная σ)" << endl;
     cout << "  - output/plot_chi_squared.png (неизвестное μ)" << endl;
