@@ -18,7 +18,8 @@ SOURCES = main.cpp \
           $(SRC_DIR)/nelder_mead.cpp \
           $(SRC_DIR)/mle_methods.cpp \
           $(SRC_DIR)/confidence_intervals.cpp \
-          $(SRC_DIR)/order.cpp
+          $(SRC_DIR)/order.cpp \
+          $(SRC_DIR)/statistical_tests.cpp
 
 # Объектные файлы
 OBJECTS = $(SOURCES:.cpp=.o)
@@ -112,5 +113,6 @@ $(SRC_DIR)/mls_normal.o: $(INCLUDE_DIR)/mle_methods.h $(INCLUDE_DIR)/boost_distr
 $(SRC_DIR)/mls_weibull.o: $(INCLUDE_DIR)/mle_methods.h $(INCLUDE_DIR)/boost_distributions.h \
                            $(INCLUDE_DIR)/nelder_mead.h $(INCLUDE_DIR)/matrix_operations.h
 $(SRC_DIR)/confidence_intervals.o: $(INCLUDE_DIR)/confidence_intervals.h $(INCLUDE_DIR)/boost_distributions.h
+$(SRC_DIR)/statistical_tests.o: $(INCLUDE_DIR)/statistical_tests.h $(INCLUDE_DIR)/boost_distributions.h
 
 .PHONY: all clean clean-obj run rebuild visualize check-deps help directories
