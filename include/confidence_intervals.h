@@ -20,6 +20,21 @@ struct ConfidenceIntervals {
     ConfidenceInterval sigma;                // ДИ для σ
 };
 
+// Структура для персентилей (квантилей)
+struct Percentile {
+    double p;              // Уровень персентиля (0-1)
+    double value;          // Значение персентиля
+    double lower;          // Нижняя граница ДИ
+    double upper;          // Верхняя граница ДИ
+    double confidence;     // Уровень доверия
+};
+
+// Структура для набора персентилей
+struct Percentiles {
+    std::vector<Percentile> percentiles;
+    std::string distribution_type;  // "normal" или "weibull"
+};
+
 /**
  * Доверительный интервал для среднего при ИЗВЕСТНОЙ σ
  * Использует нормальное распределение N(0,1)
@@ -98,5 +113,44 @@ void save_confidence_intervals(const ConfidenceIntervals& ci,
                                const char* filename,
                                const std::vector<double>& data,
                                double known_sigma = -1.0);
+
+/**
+ * Вычисление персентилей для нормального распределения с доверительными интервалами
+ * Использует формулы (2.79), (2.80) из PDF Агамирова
+ *
+ * @param mean Среднее
+ * @param sigma Стандартное отклонение
+ * @param n Размер выборки
+ * @param p_levels Уровни персентилей (например {0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95})
+ * @param confidence Уровень доверия (по умолчанию 0.95)
+ * @return Структура с персентилями и их ДИ
+ */
+Percentiles compute_normal_percentiles(double mean, double sigma, int n,
+                                       const std::vector<double>& p_levels,
+                                       double confidence = 0.95);
+
+/**
+ * Вычисление персентилей для распределения Вейбулла с доверительными интервалами
+ *
+ * @param lambda Параметр масштаба
+ * @param k Параметр формы
+ * @param n Размер выборки
+ * @param p_levels Уровни персентилей
+ * @param confidence Уровень доверия (по умолчанию 0.95)
+ * @return Структура с персентилями и их ДИ
+ */
+Percentiles compute_weibull_percentiles(double lambda, double k, int n,
+                                        const std::vector<double>& p_levels,
+                                        double confidence = 0.95);
+
+/**
+ * Вывод персентилей на экран
+ */
+void print_percentiles(const Percentiles& percentiles);
+
+/**
+ * Сохранение персентилей в файл
+ */
+void save_percentiles(const Percentiles& percentiles, const char* filename);
 
 #endif // CONFIDENCE_INTERVALS_H

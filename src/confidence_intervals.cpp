@@ -254,3 +254,147 @@ void save_confidence_intervals(const ConfidenceIntervals& ci,
     file.close();
     std::cout << "Доверительные интервалы сохранены: " << filename << "\n";
 }
+
+// ============ ПЕРСЕНТИЛИ (КВАНТИЛИ) ============
+
+Percentiles compute_normal_percentiles(double mean, double sigma, int n,
+                                       const std::vector<double>& p_levels,
+                                       double confidence) {
+    Percentiles result;
+    result.distribution_type = "normal";
+
+    double alpha = 1.0 - confidence;
+    int df = n - 1;
+
+    // Для каждого уровня персентиля
+    for (double p : p_levels) {
+        Percentile perc;
+        perc.p = p;
+        perc.confidence = confidence;
+
+        // Квантиль нормального распределения
+        double z_p = norm_ppf(p);
+        perc.value = mean + z_p * sigma;
+
+        // Доверительный интервал для персентиля при неизвестной σ
+        // Используем формулы (2.79), (2.80) из PDF Агамирова
+        // x_p = μ + z_p*σ
+        // ДИ: x̄_p ± t_{α/2}(n-1) * σ̄ * sqrt(1 + z_p²/(2*(n-1)))
+
+        double t_crit = t_ppf(1.0 - alpha / 2.0, df);
+        double se = sigma * std::sqrt(1.0 / n + z_p * z_p / (2.0 * df));
+
+        perc.lower = perc.value - t_crit * se;
+        perc.upper = perc.value + t_crit * se;
+
+        result.percentiles.push_back(perc);
+    }
+
+    return result;
+}
+
+Percentiles compute_weibull_percentiles(double lambda, double k, int n,
+                                        const std::vector<double>& p_levels,
+                                        double confidence) {
+    Percentiles result;
+    result.distribution_type = "weibull";
+
+    double alpha = 1.0 - confidence;
+
+    // Для каждого уровня персентиля
+    for (double p : p_levels) {
+        Percentile perc;
+        perc.p = p;
+        perc.confidence = confidence;
+
+        // Квантиль распределения Вейбулла
+        // x_p = λ * (-ln(1-p))^(1/k)
+        perc.value = lambda * std::pow(-std::log(1.0 - p), 1.0 / k);
+
+        // Доверительный интервал для персентиля Вейбулла
+        // Используем дельта-метод для приближенного ДИ
+        // Var(x_p) ≈ (∂x_p/∂λ)² * Var(λ) + (∂x_p/∂k)² * Var(k)
+
+        double var_lambda = (lambda * lambda) / (n * k * k);
+        double var_k = 1.644 * (k * k) / n;
+
+        // Частные производные
+        double w = -std::log(1.0 - p);
+        double w_pow = std::pow(w, 1.0 / k);
+
+        // ∂x_p/∂λ = w^(1/k)
+        double dx_dlambda = w_pow;
+
+        // ∂x_p/∂k = -λ * w^(1/k) * ln(w) / k²
+        double dx_dk = -lambda * w_pow * std::log(w) / (k * k);
+
+        // Variance of percentile
+        double var_xp = dx_dlambda * dx_dlambda * var_lambda +
+                        dx_dk * dx_dk * var_k;
+
+        double se_xp = std::sqrt(var_xp);
+
+        // Используем нормальное приближение для ДИ
+        double z_crit = norm_ppf(1.0 - alpha / 2.0);
+        perc.lower = perc.value - z_crit * se_xp;
+        perc.upper = perc.value + z_crit * se_xp;
+
+        // Ограничение: персентиль не может быть отрицательным
+        if (perc.lower < 0) perc.lower = 0;
+
+        result.percentiles.push_back(perc);
+    }
+
+    return result;
+}
+
+void print_percentiles(const Percentiles& percentiles) {
+    std::cout << "\n========================================\n";
+    std::cout << "ПЕРСЕНТИЛИ (КВАНТИЛИ) - " << percentiles.distribution_type << "\n";
+    std::cout << "========================================\n";
+    std::cout << std::fixed << std::setprecision(4);
+
+    std::cout << "\n" << std::setw(10) << "Уровень"
+              << std::setw(12) << "Значение"
+              << std::setw(25) << "95% ДИ"
+              << std::setw(12) << "Ширина" << "\n";
+    std::cout << std::string(60, '-') << "\n";
+
+    for (const auto& p : percentiles.percentiles) {
+        std::cout << std::setw(9) << (p.p * 100) << "%"
+                  << std::setw(12) << p.value
+                  << "   [" << std::setw(8) << p.lower << ", " << std::setw(8) << p.upper << "]"
+                  << std::setw(12) << (p.upper - p.lower) << "\n";
+    }
+
+    std::cout << "========================================\n\n";
+}
+
+void save_percentiles(const Percentiles& percentiles, const char* filename) {
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Ошибка: не удалось открыть файл " << filename << "\n";
+        return;
+    }
+
+    file << std::fixed << std::setprecision(6);
+
+    file << "# Персентили (квантили) для " << percentiles.distribution_type << "\n";
+    file << "# Уровень доверия: 95%\n";
+    file << "#\n";
+    file << "distribution_type " << percentiles.distribution_type << "\n";
+    file << "n_percentiles " << percentiles.percentiles.size() << "\n";
+    file << "\n";
+
+    file << "# p value lower upper width\n";
+    for (const auto& p : percentiles.percentiles) {
+        file << p.p << " "
+             << p.value << " "
+             << p.lower << " "
+             << p.upper << " "
+             << (p.upper - p.lower) << "\n";
+    }
+
+    file.close();
+    std::cout << "Персентили сохранены: " << filename << "\n";
+}
