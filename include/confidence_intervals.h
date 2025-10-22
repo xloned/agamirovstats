@@ -2,6 +2,7 @@
 #define CONFIDENCE_INTERVALS_H
 
 #include <vector>
+#include <string>
 
 // Структура для хранения доверительного интервала
 struct ConfidenceInterval {

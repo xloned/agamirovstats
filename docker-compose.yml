@@ -1,0 +1,14 @@
+services:
+  agamirovstats:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agamirovstats:latest
+    container_name: agamirovstats
+    volumes:
+      # Монтируем директорию output для сохранения результатов на хосте
+      - ./output:/app/output
+      # Опционально: монтируем input если хотите менять входные данные
+      - ./input:/app/input
+    stdin_open: true
+    tty: true

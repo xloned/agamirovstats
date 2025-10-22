@@ -23,6 +23,11 @@
 - **Python 3.7+** для визуализации
 - **Python библиотеки**: numpy, matplotlib, scipy
 
+### Docker (рекомендуется)
+
+- **Docker** версии 20.10+
+- **Docker Compose** (опционально, для удобства)
+
 ### Установка зависимостей
 
 #### Linux (Ubuntu/Debian)
@@ -52,6 +57,43 @@ pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-boost python3 python3-pip
 ```
 
 ## Установка
+
+### Быстрый старт с Docker (рекомендуется)
+
+Docker позволяет запустить проект без установки зависимостей на вашей системе.
+
+#### 1. Клонирование репозитория
+
+```bash
+git clone https://github.com/xloned/agamirovstats.git
+cd agamirovstats
+```
+
+#### 2. Сборка Docker образа
+
+```bash
+docker build -t agamirovstats .
+```
+
+#### 3. Запуск с Docker Compose (самый простой способ)
+
+```bash
+docker compose up
+```
+
+Результаты будут автоматически сохранены в директорию `output/` на вашем компьютере.
+
+#### 4. Запуск с Docker напрямую
+
+```bash
+# Создаем директорию output если её нет
+mkdir -p output
+
+# Запускаем контейнер
+docker run --rm -v "$(pwd)/output:/app/output" -v "$(pwd)/input:/app/input" agamirovstats
+```
+
+### Установка без Docker
 
 ### 1. Клонирование репозитория
 
@@ -97,7 +139,19 @@ mingw32-make -f Makefile.win
 
 ## Запуск
 
-### Linux/macOS
+### С Docker
+
+```bash
+# Использование Docker Compose (рекомендуется)
+docker compose up
+
+# Или напрямую через Docker
+docker run --rm -v "$(pwd)/output:/app/output" -v "$(pwd)/input:/app/input" agamirovstats
+```
+
+### Без Docker
+
+#### Linux/macOS
 
 ```bash
 make run
@@ -109,7 +163,7 @@ make run
 ./mle_estimator
 ```
 
-### Windows
+#### Windows
 
 ```cmd
 mle_estimator.exe
@@ -147,6 +201,9 @@ agamirovstats/
 ├── main.cpp                    # Главный файл программы
 ├── Makefile                    # Makefile для Unix
 ├── Makefile.win                # Makefile для Windows
+├── Dockerfile                  # Docker образ
+├── docker-compose.yml          # Docker Compose конфигурация
+├── .dockerignore               # Исключения для Docker
 └── README.md                   # Этот файл
 ```
 
@@ -235,7 +292,24 @@ mingw32-make -f Makefile.win clean
 
 ## Устранение неполадок
 
-### Ошибка: "boost/math not found"
+### Docker
+
+#### Проблемы с правами доступа к output/
+
+```bash
+# На Linux может потребоваться изменить права
+sudo chown -R $USER:$USER output/
+```
+
+#### Пересборка образа после изменений
+
+```bash
+docker compose build --no-cache
+```
+
+### Без Docker
+
+#### Ошибка: "boost/math not found"
 
 Убедитесь что Boost установлен и путь к нему указан правильно:
 
@@ -247,11 +321,11 @@ export BOOST_ROOT=/path/to/boost
 export BOOST_ROOT=/mingw64
 ```
 
-### Ошибка: "Python venv not found"
+#### Ошибка: "Python venv not found"
 
 Создайте виртуальное окружение заново (см. раздел Установка).
 
-### Графики не создаются
+#### Графики не создаются
 
 Проверьте что Python библиотеки установлены:
 

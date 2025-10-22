@@ -1,0 +1,42 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+*.o
+mle_estimator
+mle_estimator.exe
+
+# Output files
+output/*.txt
+output/*.png
+
+# Python
+python/venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Documentation (optional - uncomment if you want to exclude)
+# README.md
+# LICENSE
+
+# Test files (optional)
+test/

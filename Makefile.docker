@@ -1,0 +1,74 @@
+# Makefile для Docker окружения (Ubuntu)
+# Используется в Dockerfile для сборки проекта
+
+# Компилятор и флаги
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -I./include
+LDFLAGS =
+
+# Директории
+SRC_DIR = src
+INCLUDE_DIR = include
+OUTPUT_DIR = output
+
+# Исходные файлы
+SOURCES = main.cpp \
+          $(SRC_DIR)/boost_distributions.cpp \
+          $(SRC_DIR)/matrix_operations.cpp \
+          $(SRC_DIR)/nelder_mead.cpp \
+          $(SRC_DIR)/mle_methods.cpp \
+          $(SRC_DIR)/confidence_intervals.cpp
+
+# Объектные файлы
+OBJECTS = $(SOURCES:.cpp=.o)
+
+# Исполняемый файл
+TARGET = mle_estimator
+
+# Цель по умолчанию
+all: directories $(TARGET)
+
+# Создание необходимых директорий
+directories:
+	@mkdir -p $(OUTPUT_DIR)
+
+# Линковка
+$(TARGET): $(OBJECTS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+	@echo "Сборка завершена: $(TARGET)"
+
+# Компиляция объектных файлов
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Очистка
+clean:
+	rm -f $(OBJECTS) $(TARGET)
+	rm -f $(OUTPUT_DIR)/*.txt
+	@echo "Очистка выполнена"
+
+# Очистка только объектных файлов
+clean-obj:
+	rm -f $(OBJECTS)
+	@echo "Объектные файлы удалены"
+
+# Запуск программы
+run: $(TARGET)
+	./$(TARGET)
+
+# Полная очистка и пересборка
+rebuild: clean all
+
+# Зависимости заголовочных файлов
+main.o: $(INCLUDE_DIR)/mle_methods.h $(INCLUDE_DIR)/nelder_mead.h \
+        $(INCLUDE_DIR)/boost_distributions.h $(INCLUDE_DIR)/matrix_operations.h \
+        $(INCLUDE_DIR)/confidence_intervals.h
+
+$(SRC_DIR)/boost_distributions.o: $(INCLUDE_DIR)/boost_distributions.h
+$(SRC_DIR)/matrix_operations.o: $(INCLUDE_DIR)/matrix_operations.h
+$(SRC_DIR)/nelder_mead.o: $(INCLUDE_DIR)/nelder_mead.h
+$(SRC_DIR)/mle_methods.o: $(INCLUDE_DIR)/mle_methods.h $(INCLUDE_DIR)/boost_distributions.h \
+                           $(INCLUDE_DIR)/nelder_mead.h $(INCLUDE_DIR)/matrix_operations.h
+$(SRC_DIR)/confidence_intervals.o: $(INCLUDE_DIR)/confidence_intervals.h $(INCLUDE_DIR)/boost_distributions.h
+
+.PHONY: all clean clean-obj run rebuild directories
