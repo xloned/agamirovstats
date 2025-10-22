@@ -214,8 +214,47 @@ int main() {
         save_confidence_intervals(ci, "output/confidence_intervals.txt", normal_data);
 
         cout << "\nДоверительные интервалы сохранены в output/confidence_intervals.txt" << endl;
+
+        // Вычисление персентилей для нормального распределения
+        cout << "\nВычисление персентилей для нормального распределения..." << endl;
+
+        // Вычисляем выборочные характеристики
+        double mean = 0.0;
+        for (double x : normal_data) mean += x;
+        mean /= normal_data.size();
+
+        double variance = 0.0;
+        for (double x : normal_data) {
+            variance += (x - mean) * (x - mean);
+        }
+        double sigma = sqrt(variance / (normal_data.size() - 1));
+
+        vector<double> p_levels = {0.01, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.99};
+        Percentiles normal_perc = compute_normal_percentiles(mean, sigma, normal_data.size(), p_levels);
+
+        print_percentiles(normal_perc);
+        save_percentiles(normal_perc, "output/percentiles_normal.txt");
+
     } else {
         cerr << "Ошибка: нет данных для вычисления доверительных интервалов" << endl;
+    }
+
+    // Вычисление персентилей для распределения Вейбулла
+    if (!weibull_data.empty()) {
+        cout << "\nВычисление персентилей для распределения Вейбулла..." << endl;
+
+        // Получаем параметры из результата MLE
+        MLEResult result_weibull = mle_weibull_complete(weibull_data);
+        double lambda = result_weibull.parameters[0];
+        double k = result_weibull.parameters[1];
+
+        vector<double> p_levels = {0.01, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.99};
+        Percentiles weibull_perc = compute_weibull_percentiles(lambda, k, weibull_data.size(), p_levels);
+
+        print_percentiles(weibull_perc);
+        save_percentiles(weibull_perc, "output/percentiles_weibull.txt");
+
+        free_mle_result(result_weibull);
     }
 
     // ==================== ГЕНЕРАЦИЯ ВИЗУАЛИЗАЦИИ ====================
