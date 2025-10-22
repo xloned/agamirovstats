@@ -13,27 +13,33 @@
 ne_simp global_data_weibull;
 
 // Целевая функция для оптимизации Вейбулла (полные данные)
+// Минимизируем отрицательный log-likelihood
 double WeibullObjective(std::vector<double> params) {
-    double c = params[0];  // параметр формы
-    if (c <= 0) return 1e10;
+    double k = params[0];  // параметр формы
+    if (k <= 0 || k > 100) return 1e10;  // Ограничения
 
-    double n = global_data_weibull.n;
-    double s1 = 0.0, s2 = 0.0;
+    int n = global_data_weibull.n;
 
-    for (int i = 0; i < global_data_weibull.n; i++) {
+    // Вычисляем λ для данного k
+    double sum_xk = 0.0;
+    for (int i = 0; i < n; i++) {
+        sum_xk += std::pow(global_data_weibull.x[i], k);
+    }
+    double lambda = std::pow(sum_xk / n, 1.0 / k);
+
+    if (lambda <= 0 || !std::isfinite(lambda)) return 1e10;
+
+    // Вычисляем отрицательный log-likelihood
+    double neg_log_likelihood = 0.0;
+    for (int i = 0; i < n; i++) {
         double x = global_data_weibull.x[i];
-        s1 += std::pow(x, c);
-        s2 += std::pow(x, c) * std::log(x);
+        if (x <= 0) continue;
+
+        // -log L = -log(k/λ) - (k-1)*log(x) + (x/λ)^k
+        neg_log_likelihood += -std::log(k / lambda) - (k - 1) * std::log(x) + std::pow(x / lambda, k);
     }
 
-    double b = std::pow(s1 / n, 1.0 / c);  // параметр масштаба
-
-    // Уравнение для оценки c
-    double eq = s2 / s1 - 1.0 / c - std::accumulate(global_data_weibull.x.begin(),
-                                                      global_data_weibull.x.begin() + global_data_weibull.n, 0.0,
-                                                      [](double acc, double x) { return acc + std::log(x); }) / n;
-
-    return eq * eq;  // Минимизация квадрата уравнения
+    return neg_log_likelihood;
 }
 
 // Реализация MLE для распределения Вейбулла с полными данными
@@ -65,38 +71,46 @@ MLEResult mle_weibull_complete(const std::vector<double>& data) {
     double eps = 1e-6;
     std::vector<double> optimal = neldermead(x0, eps, WeibullObjective);
 
-    double c = optimal[0];  // параметр формы
-    double sum_xc = 0.0;
+    double k = optimal[0];  // параметр формы
+
+    // Правильная формула для параметра масштаба λ
+    // λ = (1/n * Σ x_i^k)^(1/k)
+    double sum_xk = 0.0;
     for (double x : data) {
-        sum_xc += std::pow(x, c);
+        sum_xk += std::pow(x, k);
     }
-    double b = std::pow(sum_xc / n, 1.0 / c);  // параметр масштаба
+    double lambda = std::pow(sum_xk / n, 1.0 / k);  // параметр масштаба
 
     // Сохранение параметров
-    result.parameters.push_back(b);  // lambda (масштаб)
-    result.parameters.push_back(c);  // k (форма)
+    result.parameters.push_back(lambda);  // lambda (масштаб)
+    result.parameters.push_back(k);       // k (форма)
 
     // Вычисление логарифма функции правдоподобия
+    // log L = n*log(k/λ) + (k-1)*Σlog(x_i) - Σ(x_i/λ)^k
     double log_likelihood = 0.0;
     for (double x : data) {
-        log_likelihood += std::log(c / b) + (c - 1) * std::log(x / b) - std::pow(x / b, c);
+        log_likelihood += std::log(k / lambda) + (k - 1) * std::log(x) - std::pow(x / lambda, k);
     }
     result.log_likelihood = log_likelihood;
 
-    // Вычисление ковариационной матрицы (через информационную матрицу Фишера)
+    // Вычисление ковариационной матрицы через информационную матрицу Фишера
     result.cov_size = 2;
     result.covariance = createMatrix(2, 2);
 
-    // Упрощенная оценка через численное дифференцирование
-    double delta = 1e-5;
+    // Приближенная ковариационная матрица для Вейбулла
+    // Используем формулы из теории (упрощенные)
+    double var_lambda = (lambda * lambda) / (n * k * k);  // Var(λ̂)
+    double var_k = 1.644 * (k * k) / n;                    // Var(k̂) (приближенно)
+    double cov_lambda_k = 0.0;                             // Cov(λ̂, k̂) ≈ 0 для больших n
 
-    // Для точной ковариационной матрицы используем функцию из mle_methods
-    std::vector<int> r(n, 0);
-    CovMatrixMleW(n, global_data_weibull.x, r, c, b, result.covariance);
+    result.covariance[0][0] = var_lambda;
+    result.covariance[0][1] = cov_lambda_k;
+    result.covariance[1][0] = cov_lambda_k;
+    result.covariance[1][1] = var_k;
 
     // Стандартные ошибки
-    result.std_errors.push_back(std::sqrt(std::abs(result.covariance[0][0])));
-    result.std_errors.push_back(std::sqrt(std::abs(result.covariance[1][1])));
+    result.std_errors.push_back(std::sqrt(var_lambda));
+    result.std_errors.push_back(std::sqrt(var_k));
 
     result.iterations = 1;
     result.converged = true;
