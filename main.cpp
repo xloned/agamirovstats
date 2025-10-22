@@ -4,6 +4,7 @@
 #include <string>
 #include <iomanip>
 #include <cmath>
+#include <cstdlib>
 
 #include "include/mle_methods.h"
 #include "include/nelder_mead.h"
@@ -12,6 +13,40 @@
 #include "include/confidence_intervals.h"
 
 using namespace std;
+
+// Кроссплатформенное определение путей
+#ifdef _WIN32
+    #define PATH_SEPARATOR "\\"
+    #define PYTHON_CMD "python\\venv\\Scripts\\python.exe"
+    #define NULL_DEVICE "NUL"
+#else
+    #define PATH_SEPARATOR "/"
+    #define PYTHON_CMD "python/venv/bin/python"
+    #define NULL_DEVICE "/dev/null"
+#endif
+
+// Функция для кроссплатформенного выполнения Python скриптов
+int run_python_script(const string& script, const string& args = "") {
+    string command;
+
+#ifdef _WIN32
+    // Windows: используем cd /d для смены диска и директории
+    command = "cd /d python && .." PATH_SEPARATOR PYTHON_CMD " " + script;
+    if (!args.empty()) {
+        command += " " + args;
+    }
+    command += " 2>" NULL_DEVICE;
+#else
+    // Unix/Linux/macOS
+    command = "cd python && ../" PYTHON_CMD " " + script;
+    if (!args.empty()) {
+        command += " " + args;
+    }
+    command += " 2>" NULL_DEVICE;
+#endif
+
+    return system(command.c_str());
+}
 
 // Функция для чтения данных из файла (только значения)
 vector<double> read_data(const string& filename) {
@@ -261,19 +296,19 @@ int main() {
     print_separator("ГЕНЕРАЦИЯ ВИЗУАЛИЗАЦИИ");
     cout << "\nСоздание графиков..." << endl;
     cout << "  - Визуализация MLE для нормального распределения..." << endl;
-    system("cd python && ../python/venv/bin/python plot_normal.py mle 2>/dev/null");
+    run_python_script("plot_normal.py", "mle");
 
     cout << "  - Визуализация MLS для нормального распределения..." << endl;
-    system("cd python && ../python/venv/bin/python plot_normal.py mls 2>/dev/null");
+    run_python_script("plot_normal.py", "mls");
 
     cout << "  - Визуализация MLE для распределения Вейбулла..." << endl;
-    system("cd python && ../python/venv/bin/python plot_weibull.py mle 2>/dev/null");
+    run_python_script("plot_weibull.py", "mle");
 
     cout << "  - Визуализация MLS для распределения Вейбулла..." << endl;
-    system("cd python && ../python/venv/bin/python plot_weibull.py mls 2>/dev/null");
+    run_python_script("plot_weibull.py", "mls");
 
     cout << "  - Визуализация распределения Стьюдента (3 графика)..." << endl;
-    system("cd python && ../python/venv/bin/python plot_t_distribution.py 2>/dev/null");
+    run_python_script("plot_t_distribution.py");
 
     cout << "\nВизуализация завершена!" << endl;
     cout << "Графики сохранены:" << endl;
