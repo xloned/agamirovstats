@@ -219,30 +219,37 @@ MLEResult mle_weibull_complete(const std::vector<double>& data) {
     std::vector<double> opt_params = neldermead(x0, eps, WeibullMinFunction);
     double shape = opt_params[0];
     
-    // Вычисление параметра масштаба
+    // Вычисление параметра масштаба λ
+    // λ = (1/n * Σ x_i^k)^(1/k)
     double sum = 0.0;
+    int n = data.size();
     for (double x : data) {
         sum += pow(x, shape);
     }
-    double scale = sum / data.size();
-    
+    double scale = pow(sum / n, 1.0 / shape);  // ИСПРАВЛЕНО
+
     result.parameters = {scale, shape};
     result.iterations = 1000;
     result.converged = true;
     result.cov_size = 2;
-    
-    // Вычисление ковариационной матрицы
+
+    // Вычисление ковариационной матрицы (приближенная формула)
     result.covariance = createMatrix(2, 2);
-    CovMatrixMleW(data.size(), nesm.x, nesm.r, scale, shape, result.covariance);
-    
+    double var_lambda = (scale * scale) / (n * shape * shape);
+    double var_k = 1.644 * (shape * shape) / n;
+    result.covariance[0][0] = var_lambda;
+    result.covariance[0][1] = 0.0;
+    result.covariance[1][0] = 0.0;
+    result.covariance[1][1] = var_k;
+
     // Стандартные ошибки
-    result.std_errors = {std::sqrt(result.covariance[0][0]),
-                        std::sqrt(result.covariance[1][1])};
-    
+    result.std_errors = {std::sqrt(var_lambda), std::sqrt(var_k)};
+
     // Логарифм функции правдоподобия
+    // log L = n*log(k/λ) + (k-1)*Σlog(x_i) - Σ(x_i/λ)^k
     result.log_likelihood = 0.0;
     for (double x : data) {
-        result.log_likelihood += log(shape) - log(scale) + (shape - 1) * log(x) - 
+        result.log_likelihood += log(shape / scale) + (shape - 1) * log(x) -
                   pow(x / scale, shape);
     }
     
@@ -266,33 +273,40 @@ MLEResult mls_weibull_censored(const std::vector<double>& data, const std::vecto
     std::vector<double> opt_params = neldermead(x0, eps, WeibullMinFunction);
     double shape = opt_params[0];
     
-    // Вычисление параметра масштаба
-    int k = 0;
+    // Вычисление параметра масштаба λ
+    // λ = (1/n * Σ x_i^k)^(1/k) для всех данных
+    int k = 0;  // количество полных наблюдений
     double sum = 0.0;
+    int n = data.size();
     for (size_t i = 0; i < data.size(); ++i) {
         k += (1 - censored[i]);
         sum += pow(data[i], shape);
     }
-    double scale = sum / k;
-    
+    double scale = pow(sum / n, 1.0 / shape);  // ИСПРАВЛЕНО
+
     result.parameters = {scale, shape};
     result.iterations = 1000;
     result.converged = true;
     result.cov_size = 2;
-    
-    // Вычисление ковариационной матрицы
+
+    // Вычисление ковариационной матрицы (приближенная формула)
     result.covariance = createMatrix(2, 2);
-    CovMatrixMleW(data.size(), nesm.x, nesm.r, scale, shape, result.covariance);
-    
+    double var_lambda = (scale * scale) / (k * shape * shape);
+    double var_k = 1.644 * (shape * shape) / k;
+    result.covariance[0][0] = var_lambda;
+    result.covariance[0][1] = 0.0;
+    result.covariance[1][0] = 0.0;
+    result.covariance[1][1] = var_k;
+
     // Стандартные ошибки
-    result.std_errors = {std::sqrt(result.covariance[0][0]),
-                        std::sqrt(result.covariance[1][1])};
-    
+    result.std_errors = {std::sqrt(var_lambda), std::sqrt(var_k)};
+
     // Логарифм функции правдоподобия
+    // log L = Σ[r_i=0: log(k/λ) + (k-1)*log(x_i) - (x_i/λ)^k] + Σ[r_i=1: -(x_i/λ)^k]
     result.log_likelihood = 0.0;
     for (size_t i = 0; i < data.size(); ++i) {
         if (censored[i] == 0) {
-            result.log_likelihood += log(shape) - log(scale) + (shape - 1) * log(data[i]) - 
+            result.log_likelihood += log(shape / scale) + (shape - 1) * log(data[i]) -
                       pow(data[i] / scale, shape);
         } else {
             result.log_likelihood += -pow(data[i] / scale, shape);
