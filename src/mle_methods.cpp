@@ -171,7 +171,7 @@ MLEResult mle_normal_complete(const std::vector<double>& data) {
 }
 
 // ============ MLS для нормального распределения (ТОЛЬКО полные данные) ============
-// Использует взвешенный МНК через порядковые статистики Агамирова (ordern)
+// Использует взвешенный МНК через порядковые статистики (метод Дэйвида - ordern)
 MLEResult mls_normal_complete(const std::vector<double>& data) {
     MLEResult result;
     int n = data.size();

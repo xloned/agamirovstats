@@ -277,7 +277,7 @@ Percentiles compute_normal_percentiles(double mean, double sigma, int n,
         perc.value = mean + z_p * sigma;
 
         // Доверительный интервал для персентиля при неизвестной σ
-        // Используем формулы (2.79), (2.80) из PDF Агамирова
+        // Используем формулы (2.79), (2.80) из PDF порядковых статистик
         // x_p = μ + z_p*σ
         // ДИ: x̄_p ± t_{α/2}(n-1) * σ̄ * sqrt(1 + z_p²/(2*(n-1)))
 

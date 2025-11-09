@@ -134,7 +134,7 @@ int main() {
     print_separator("СИСТЕМА АВТОМАТИЧЕСКОЙ ОЦЕНКИ ПАРАМЕТРОВ РАСПРЕДЕЛЕНИЙ");
     cout << "\nПрограмма выполняет оценку параметров для:" << endl;
     cout << "  1. Нормального распределения - MLE (полные данные)" << endl;
-    cout << "  2. Нормального распределения - MLS через метод Агамирова (полные данные)" << endl;
+    cout << "  2. Нормального распределения - MLS через метод Дэйвида (полные данные)" << endl;
     cout << "  3. Распределения Вейбулла - MLE (полные данные)" << endl;
     cout << "  4. Статистические критерии (Граббса, Фишера, Стьюдента)" << endl;
     cout << "  5. Доверительные интервалы и персентили" << endl;
@@ -161,13 +161,13 @@ int main() {
     }
 
     // ==================== 2. НОРМАЛЬНОЕ РАСПРЕДЕЛЕНИЕ MLS (полные данные) ====================
-    print_separator("2. НОРМАЛЬНОЕ РАСПРЕДЕЛЕНИЕ - MLS МЕТОД АГАМИРОВА (ПОЛНЫЕ ДАННЫЕ)");
+    print_separator("2. НОРМАЛЬНОЕ РАСПРЕДЕЛЕНИЕ - MLS МЕТОД (ПОЛНЫЕ ДАННЫЕ)");
 
     if (!normal_data.empty()) {
-        cout << "\nВыполняется MLS (метод Агамирова - ordern) для нормального распределения..." << endl;
+        cout << "\nВыполняется MLS (метод Дэйвида - ordern) для нормального распределения..." << endl;
         MLEResult result_normal_mls = mls_normal_complete(normal_data);
 
-        print_mle_result(result_normal_mls, "MLS Нормальное распределение (метод Агамирова)");
+        print_mle_result(result_normal_mls, "MLS Нормальное распределение (метод Дэйвида)");
         save_mle_result(result_normal_mls, "output/mls_normal_complete.txt", normal_data, vector<int>());
 
         free_mle_result(result_normal_mls);

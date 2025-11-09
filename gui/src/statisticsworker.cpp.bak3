@@ -1,0 +1,353 @@
+/**
+ * @file statisticsworker.cpp
+ * @brief Рабочий поток для выполнения статистического анализа
+ *
+ * Использует существующие модули из корневой папки проекта:
+ * - mle_methods.h для MLE/MLS анализа
+ * - statistical_tests.h для статистических тестов
+ */
+
+#include "statisticsworker.h"
+#include "mle_methods.h"
+#include "statistical_tests.h"
+
+#include <QDir>
+#include <QProcess>
+#include <sstream>
+#include <iomanip>
+#include <cmath>
+
+StatisticsWorker::StatisticsWorker(QObject *parent)
+    : QThread(parent)
+    , currentTask(TASK_MLE_NORMAL)
+    , alpha(0.05)
+{
+}
+
+StatisticsWorker::~StatisticsWorker()
+{
+}
+
+void StatisticsWorker::setTask(TaskType task, const std::vector<double>& d, double a)
+{
+    currentTask = task;
+    data = d;
+    alpha = a;
+}
+
+void StatisticsWorker::setData2(const std::vector<double>& d)
+{
+    data2 = d;
+}
+
+void StatisticsWorker::run()
+{
+    emit progressUpdated(10, "Начало анализа...");
+
+    QString results;
+    bool success = false;
+
+    try {
+        switch (currentTask) {
+            case TASK_MLE_NORMAL:
+                results = runMLENormal();
+                success = true;
+                break;
+
+            case TASK_MLE_WEIBULL:
+                results = runMLEWeibull();
+                success = true;
+                break;
+
+            case TASK_MLS_NORMAL:
+                results = runMLSNormal();
+                success = true;
+                break;
+
+            case TASK_GRUBBS:
+                results = runGrubbsTest();
+                success = true;
+                break;
+
+            case TASK_FISHER:
+                results = runFisherTest();
+                success = true;
+                break;
+
+            case TASK_STUDENT_EQUAL:
+                results = runStudentTestEqual();
+                success = true;
+                break;
+
+            case TASK_STUDENT_UNEQUAL:
+                results = runStudentTestUnequal();
+                success = true;
+                break;
+
+            case TASK_STUDENT_AUTO:
+                results = runStudentTestAuto();
+                success = true;
+                break;
+
+            default:
+                results = "Неизвестный тип анализа";
+                success = false;
+        }
+
+        emit progressUpdated(100, "Анализ завершен");
+        emit resultsReady(results);
+        emit finished(success);
+
+    } catch (const std::exception& e) {
+        results = QString("Ошибка: %1").arg(e.what());
+        emit resultsReady(results);
+        emit finished(false);
+    }
+}
+
+QString StatisticsWorker::runMLENormal()
+{
+    emit progressUpdated(30, "Выполнение MLE для нормального распределения...");
+
+    // Вызов реального модуля MLE
+    MLEResult result = mle_normal_complete(data);
+
+    emit progressUpdated(60, "Сохранение результатов...");
+
+    // Сохранение в файл (используем существующую функцию)
+    QDir rootDir = QDir::current();
+    rootDir.cdUp();
+    rootDir.cdUp();
+    QString outputPath = rootDir.absolutePath() + "/output/mle_normal_complete.txt";
+
+    std::vector<int> censored(data.size(), 0); // нет цензуры
+    save_mle_result(result, outputPath.toStdString().c_str(), data, censored);
+
+    emit progressUpdated(80, "Построение графика...");
+
+    // Вызов Python скрипта для графика
+    QString pythonScript = rootDir.absolutePath() + "/python/plot_normal.py";
+    // Используем venv python
+    QString pythonExe = rootDir.absolutePath() + "/python/venv/bin/python3";
+    if (!QFile::exists(pythonExe)) pythonExe = "python3";
+    QProcess::execute(pythonExe, QStringList() << pythonScript << "mle");
+
+    // Формирование текстового отчета
+    QString report = formatMLEResult(result, "MLE - Нормальное распределение");
+
+    free_mle_result(result);
+
+    return report;
+}
+
+QString StatisticsWorker::runMLEWeibull()
+{
+    emit progressUpdated(30, "Выполнение MLE для распределения Вейбулла...");
+
+    MLEResult result = mle_weibull_complete(data);
+
+    emit progressUpdated(60, "Сохранение результатов...");
+
+    QDir rootDir = QDir::current();
+    rootDir.cdUp();
+    rootDir.cdUp();
+    QString outputPath = rootDir.absolutePath() + "/output/mle_weibull_complete.txt";
+
+    std::vector<int> censored(data.size(), 0);
+    save_mle_result(result, outputPath.toStdString().c_str(), data, censored);
+
+    emit progressUpdated(80, "Построение графика...");
+
+    QString pythonScript = rootDir.absolutePath() + "/python/plot_weibull.py";
+    // Используем venv python
+    QString pythonExe = rootDir.absolutePath() + "/python/venv/bin/python3";
+    if (!QFile::exists(pythonExe)) pythonExe = "python3";
+    QProcess::execute(pythonExe, QStringList() << pythonScript << "mle");
+
+    QString report = formatMLEResult(result, "MLE - Распределение Вейбулла");
+
+    free_mle_result(result);
+
+    return report;
+}
+
+QString StatisticsWorker::runMLSNormal()
+{
+    emit progressUpdated(30, "Выполнение MLS для нормального распределения...");
+
+    MLEResult result = mls_normal_complete(data);
+
+    emit progressUpdated(60, "Сохранение результатов...");
+
+    QDir rootDir = QDir::current();
+    rootDir.cdUp();
+    rootDir.cdUp();
+    QString outputPath = rootDir.absolutePath() + "/output/mls_normal_complete.txt";
+
+    std::vector<int> censored(data.size(), 0);
+    save_mle_result(result, outputPath.toStdString().c_str(), data, censored);
+
+    emit progressUpdated(80, "Построение графика...");
+
+    QString pythonScript = rootDir.absolutePath() + "/python/plot_normal.py";
+    // Используем venv python
+    QString pythonExe = rootDir.absolutePath() + "/python/venv/bin/python3";
+    if (!QFile::exists(pythonExe)) pythonExe = "python3";
+    QProcess::execute(pythonExe, QStringList() << pythonScript << "mls");
+
+    QString report = formatMLEResult(result, "MLS - Метод Агамирова (Нормальное)");
+
+    free_mle_result(result);
+
+    return report;
+}
+
+QString StatisticsWorker::runGrubbsTest()
+{
+    emit progressUpdated(50, "Выполнение критерия Граббса...");
+
+    GrubbsTestResult result = grubbs_test(data, alpha);
+
+    QString report;
+    QTextStream out(&report);
+
+    out << "=== Критерий Граббса (выявление выбросов) ===\n\n";
+    out << "Размер выборки: n = " << result.n << "\n";
+    out << "Уровень значимости: α = " << result.alpha << "\n\n";
+    out << "Тестовая статистика G = " << QString::number(result.test_statistic, 'f', 4) << "\n";
+    out << "Критическое значение = " << QString::number(result.critical_value, 'f', 4) << "\n\n";
+    out << "Подозрительное значение: " << QString::number(result.outlier_value, 'f', 4);
+    out << " (индекс " << result.outlier_index << ")\n";
+    out << "Тип теста: " << QString::fromStdString(result.test_type) << "\n\n";
+
+    if (result.is_outlier) {
+        out << "РЕЗУЛЬТАТ: ВЫБРОС ОБНАРУЖЕН\n";
+        out << "H0 отвергается: данное наблюдение является выбросом\n";
+    } else {
+        out << "РЕЗУЛЬТАТ: ВЫБРОС НЕ ОБНАРУЖЕН\n";
+        out << "H0 принимается: данное наблюдение не является выбросом\n";
+    }
+
+    return report;
+}
+
+QString StatisticsWorker::runFisherTest()
+{
+    emit progressUpdated(50, "Выполнение F-критерия Фишера...");
+
+    if (data2.empty()) {
+        return "Ошибка: для F-критерия требуется две выборки";
+    }
+
+    FisherTestResult result = fisher_test(data, data2, alpha);
+
+    QString report;
+    QTextStream out(&report);
+
+    out << "=== F-критерий Фишера (сравнение дисперсий) ===\n\n";
+    out << "Выборка 1: n1 = " << result.n1 << ", s1^2 = " << QString::number(result.var1, 'f', 4) << "\n";
+    out << "Выборка 2: n2 = " << result.n2 << ", s2^2 = " << QString::number(result.var2, 'f', 4) << "\n\n";
+    out << "F-статистика = " << QString::number(result.f_statistic, 'f', 4) << "\n";
+    out << "Критическое значение = " << QString::number(result.critical_value, 'f', 4) << "\n";
+    out << "P-значение = " << QString::number(result.p_value, 'f', 4) << "\n\n";
+
+    if (result.reject_h0) {
+        out << "РЕЗУЛЬТАТ: ДИСПЕРСИИ РАЗЛИЧАЮТСЯ\n";
+        out << "H0 отвергается\n";
+    } else {
+        out << "РЕЗУЛЬТАТ: ДИСПЕРСИИ РАВНЫ\n";
+        out << "H0 принимается\n";
+    }
+
+    return report;
+}
+
+QString StatisticsWorker::runStudentTestEqual()
+{
+    emit progressUpdated(50, "Выполнение t-критерия Стьюдента (равные дисперсии)...");
+
+    if (data2.empty()) {
+        return "Ошибка: для t-критерия требуется две выборки";
+    }
+
+    StudentTestResult result = student_test_equal_var(data, data2, alpha);
+
+    return formatStudentResult(result);
+}
+
+QString StatisticsWorker::runStudentTestUnequal()
+{
+    emit progressUpdated(50, "Выполнение t-критерия Стьюдента (неравные дисперсии)...");
+
+    if (data2.empty()) {
+        return "Ошибка: для t-критерия требуется две выборки";
+    }
+
+    StudentTestResult result = student_test_unequal_var(data, data2, alpha);
+
+    return formatStudentResult(result);
+}
+
+QString StatisticsWorker::runStudentTestAuto()
+{
+    emit progressUpdated(50, "Выполнение t-критерия Стьюдента (автовыбор метода)...");
+
+    if (data2.empty()) {
+        return "Ошибка: для t-критерия требуется две выборки";
+    }
+
+    StudentTestResult result = student_test_auto(data, data2, alpha);
+
+    return formatStudentResult(result);
+}
+
+QString StatisticsWorker::formatMLEResult(const MLEResult& result, const QString& title)
+{
+    QString report;
+    QTextStream out(&report);
+
+    out << "=== " << title << " ===\n\n";
+    out << "Количество наблюдений: n = " << data.size() << "\n\n";
+
+    out << "Оценки параметров:\n";
+    for (size_t i = 0; i < result.parameters.size(); ++i) {
+        out << "  Параметр " << (i+1) << " = " << QString::number(result.parameters[i], 'f', 6);
+        if (i < result.std_errors.size()) {
+            out << " +/- " << QString::number(result.std_errors[i], 'f', 6);
+        }
+        out << "\n";
+    }
+
+    out << "\nLog-likelihood = " << QString::number(result.log_likelihood, 'f', 4) << "\n";
+    out << "Итераций: " << result.iterations << "\n";
+    out << "Сходимость: " << (result.converged ? "ДА" : "НЕТ") << "\n";
+
+    return report;
+}
+
+QString StatisticsWorker::formatStudentResult(const StudentTestResult& result)
+{
+    QString report;
+    QTextStream out(&report);
+
+    out << "=== t-критерий Стьюдента (" << QString::fromStdString(result.test_type) << ") ===\n\n";
+    out << "Выборка 1: n1 = " << result.n1 << ", среднее = " << QString::number(result.mean1, 'f', 4);
+    out << ", СКО = " << QString::number(result.std1, 'f', 4) << "\n";
+    out << "Выборка 2: n2 = " << result.n2 << ", среднее = " << QString::number(result.mean2, 'f', 4);
+    out << ", СКО = " << QString::number(result.std2, 'f', 4) << "\n\n";
+
+    out << "t-статистика = " << QString::number(result.t_statistic, 'f', 4) << "\n";
+    out << "Степени свободы = " << QString::number(result.df, 'f', 2) << "\n";
+    out << "Критическое значение = " << QString::number(result.critical_value, 'f', 4) << "\n";
+    out << "P-значение = " << QString::number(result.p_value, 'f', 4) << "\n\n";
+
+    if (result.reject_h0) {
+        out << "РЕЗУЛЬТАТ: СРЕДНИЕ РАЗЛИЧАЮТСЯ\n";
+        out << "H0 отвергается\n";
+    } else {
+        out << "РЕЗУЛЬТАТ: СРЕДНИЕ РАВНЫ\n";
+        out << "H0 принимается\n";
+    }
+
+    return report;
+}

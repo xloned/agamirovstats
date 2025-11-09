@@ -1,0 +1,424 @@
+#include "statisticsworker.h"
+#include "mle_methods.h"
+#include "statistical_tests.h"
+#include "confidence_intervals.h"
+
+#include <QThread>
+#include <sstream>
+#include <iomanip>
+
+StatisticsWorker::StatisticsWorker(QObject *parent)
+    : QThread(parent)
+    , currentTask(TASK_MLE_NORMAL)
+    , alpha(0.05)
+    , success(false)
+{
+}
+
+StatisticsWorker::~StatisticsWorker()
+{
+}
+
+void StatisticsWorker::setTask(TaskType task)
+{
+    currentTask = task;
+}
+
+void StatisticsWorker::setData(const std::vector<double>& data)
+{
+    data1 = data;
+}
+
+void StatisticsWorker::setData2(const std::vector<double>& data2)
+{
+    this->data2 = data2;
+}
+
+void StatisticsWorker::setAlpha(double alpha)
+{
+    this->alpha = alpha;
+}
+
+/**
+ * @brief Основной метод выполнения задачи в отдельном потоке
+ */
+void StatisticsWorker::run()
+{
+    success = false;
+    results.clear();
+
+    try {
+        emit progressUpdated(10, "Начало анализа...");
+
+        switch (currentTask) {
+            case TASK_MLE_NORMAL:
+                runMLENormal();
+                break;
+            case TASK_MLE_WEIBULL:
+                runMLEWeibull();
+                break;
+            case TASK_MLS_NORMAL:
+                runMLSNormal();
+                break;
+            case TASK_GRUBBS:
+                runGrubbsTest();
+                break;
+            case TASK_FISHER:
+                runFisherTest();
+                break;
+            case TASK_STUDENT_EQUAL:
+            case TASK_STUDENT_UNEQUAL:
+            case TASK_STUDENT_AUTO:
+                runStudentTest();
+                break;
+            case TASK_CONFIDENCE_INTERVALS:
+                runConfidenceIntervals();
+                break;
+            case TASK_PERCENTILES:
+                runPercentiles();
+                break;
+        }
+
+        success = true;
+        emit progressUpdated(100, "Анализ завершен");
+
+    } catch (const std::exception& e) {
+        results = QString("Ошибка: %1").arg(e.what());
+        success = false;
+    }
+
+    emit resultsReady(results);
+    emit finished(success);
+}
+
+/**
+ * @brief Выполнение MLE для нормального распределения
+ */
+void StatisticsWorker::runMLENormal()
+{
+    emit progressUpdated(30, "Вычисление MLE для нормального распределения...");
+
+    MLEResult result = mle_normal_complete(data1);
+
+    emit progressUpdated(80, "Форматирование результатов...");
+    results = formatMLEResult(result);
+
+    free_mle_result(result);
+}
+
+/**
+ * @brief Выполнение MLE для распределения Вейбулла
+ */
+void StatisticsWorker::runMLEWeibull()
+{
+    emit progressUpdated(30, "Вычисление MLE для распределения Вейбулла...");
+
+    MLEResult result = mle_weibull_complete(data1);
+
+    emit progressUpdated(80, "Форматирование результатов...");
+    results = formatMLEResult(result);
+
+    free_mle_result(result);
+}
+
+/**
+ * @brief Выполнение MLS для нормального распределения
+ */
+void StatisticsWorker::runMLSNormal()
+{
+    emit progressUpdated(30, "Вычисление MLS (метод Агамирова)...");
+
+    MLEResult result = mls_normal_complete(data1);
+
+    emit progressUpdated(80, "Форматирование результатов...");
+    results = formatMLEResult(result);
+
+    free_mle_result(result);
+}
+
+/**
+ * @brief Выполнение критерия Граббса
+ */
+void StatisticsWorker::runGrubbsTest()
+{
+    emit progressUpdated(30, "Выполнение критерия Граббса...");
+
+    GrubbsTestResult result = grubbs_test(data1, alpha);
+
+    emit progressUpdated(80, "Форматирование результатов...");
+    results = formatGrubbsResult(result);
+}
+
+/**
+ * @brief Выполнение F-критерия Фишера
+ */
+void StatisticsWorker::runFisherTest()
+{
+    if (data2.empty()) {
+        // Разделить данные пополам для демонстрации
+        size_t mid = data1.size() / 2;
+        data2 = std::vector<double>(data1.begin() + mid, data1.end());
+        data1.resize(mid);
+    }
+
+    emit progressUpdated(30, "Выполнение F-критерия Фишера...");
+
+    FisherTestResult result = fisher_test(data1, data2, alpha);
+
+    emit progressUpdated(80, "Форматирование результатов...");
+    results = formatFisherResult(result);
+}
+
+/**
+ * @brief Выполнение t-критерия Стьюдента
+ */
+void StatisticsWorker::runStudentTest()
+{
+    if (data2.empty()) {
+        // Разделить данные пополам для демонстрации
+        size_t mid = data1.size() / 2;
+        data2 = std::vector<double>(data1.begin() + mid, data1.end());
+        data1.resize(mid);
+    }
+
+    emit progressUpdated(30, "Выполнение t-критерия Стьюдента...");
+
+    StudentTestResult result;
+
+    if (currentTask == TASK_STUDENT_EQUAL) {
+        result = student_test_equal_var(data1, data2, alpha);
+    } else if (currentTask == TASK_STUDENT_UNEQUAL) {
+        result = student_test_unequal_var(data1, data2, alpha);
+    } else {
+        result = student_test_auto(data1, data2, alpha);
+    }
+
+    emit progressUpdated(80, "Форматирование результатов...");
+    results = formatStudentResult(result);
+}
+
+/**
+ * @brief Вычисление доверительных интервалов
+ */
+void StatisticsWorker::runConfidenceIntervals()
+{
+    emit progressUpdated(30, "Вычисление доверительных интервалов...");
+
+    ConfidenceIntervals ci = compute_all_confidence_intervals(data1);
+
+    emit progressUpdated(80, "Форматирование результатов...");
+    results = formatConfidenceIntervals(ci);
+}
+
+/**
+ * @brief Вычисление персентилей
+ */
+void StatisticsWorker::runPercentiles()
+{
+    emit progressUpdated(30, "Вычисление персентилей...");
+
+    // Вычислить параметры нормального распределения
+    double mean = 0.0;
+    for (double x : data1) mean += x;
+    mean /= data1.size();
+
+    double variance = 0.0;
+    for (double x : data1) {
+        variance += (x - mean) * (x - mean);
+    }
+    double sigma = std::sqrt(variance / (data1.size() - 1));
+
+    std::vector<double> p_levels = {0.01, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.99};
+    Percentiles perc = compute_normal_percentiles(mean, sigma, data1.size(), p_levels);
+
+    emit progressUpdated(80, "Форматирование результатов...");
+
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(4);
+    oss << "========================================\n";
+    oss << "  ПЕРСЕНТИЛИ (КВАНТИЛИ)\n";
+    oss << "========================================\n\n";
+    oss << "Параметры распределения:\n";
+    oss << "  μ = " << mean << "\n";
+    oss << "  σ = " << sigma << "\n";
+    oss << "  n = " << data1.size() << "\n\n";
+
+    oss << std::setw(10) << "Уровень"
+        << std::setw(15) << "Значение"
+        << std::setw(30) << "95% ДИ"
+        << "\n" << std::string(55, '-') << "\n";
+
+    for (const auto& p : perc.percentiles) {
+        oss << std::setw(9) << (p.p * 100) << "%"
+            << std::setw(15) << p.value
+            << "  [" << std::setw(10) << p.lower << ", "
+            << std::setw(10) << p.upper << "]\n";
+    }
+
+    results = QString::fromStdString(oss.str());
+}
+
+/**
+ * @brief Форматирование результатов MLE
+ */
+QString StatisticsWorker::formatMLEResult(const MLEResult& result)
+{
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(6);
+
+    oss << "========================================\n";
+    oss << "  РЕЗУЛЬТАТЫ ОЦЕНКИ ПАРАМЕТРОВ\n";
+    oss << "========================================\n\n";
+
+    oss << "Оценки параметров:\n";
+    oss << "  Параметр 1: " << result.parameters[0]
+        << " ± " << result.std_errors[0] << "\n";
+    oss << "  Параметр 2: " << result.parameters[1]
+        << " ± " << result.std_errors[1] << "\n\n";
+
+    oss << "Лог-правдоподобие: " << result.log_likelihood << "\n";
+    oss << "Итераций: " << result.iterations << "\n";
+    oss << "Сходимость: " << (result.converged ? "Да" : "Нет") << "\n\n";
+
+    oss << "Ковариационная матрица:\n";
+    for (int i = 0; i < 2; i++) {
+        oss << "  ";
+        for (int j = 0; j < 2; j++) {
+            oss << std::setw(12) << result.covariance[i][j] << " ";
+        }
+        oss << "\n";
+    }
+
+    return QString::fromStdString(oss.str());
+}
+
+/**
+ * @brief Форматирование результатов критерия Граббса
+ */
+QString StatisticsWorker::formatGrubbsResult(const GrubbsTestResult& result)
+{
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(6);
+
+    oss << "========================================\n";
+    oss << "  КРИТЕРИЙ ГРАББСА\n";
+    oss << "========================================\n\n";
+
+    oss << "Подозрительное значение: x[" << result.outlier_index
+        << "] = " << result.outlier_value << "\n\n";
+
+    oss << "Статистика G = " << result.test_statistic << "\n";
+    oss << "Критическое значение = " << result.critical_value << "\n\n";
+
+    if (result.is_outlier) {
+        oss << "РЕЗУЛЬТАТ: ВЫБРОС ОБНАРУЖЕН\n";
+        oss << "G > G_critical\n";
+    } else {
+        oss << "РЕЗУЛЬТАТ: ВЫБРОС НЕ ОБНАРУЖЕН\n";
+        oss << "G ≤ G_critical\n";
+    }
+
+    return QString::fromStdString(oss.str());
+}
+
+/**
+ * @brief Форматирование результатов F-критерия
+ */
+QString StatisticsWorker::formatFisherResult(const FisherTestResult& result)
+{
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(6);
+
+    oss << "========================================\n";
+    oss << "  F-КРИТЕРИЙ ФИШЕРА\n";
+    oss << "========================================\n\n";
+
+    oss << "Выборки: n₁ = " << result.n1 << ", n₂ = " << result.n2 << "\n";
+    oss << "Дисперсии: s₁² = " << result.var1 << ", s₂² = " << result.var2 << "\n\n";
+
+    oss << "F-статистика = " << result.f_statistic << "\n";
+    oss << "Критическое значение = " << result.critical_value << "\n";
+    oss << "P-значение = " << std::setprecision(4) << result.p_value << "\n\n";
+
+    if (result.reject_h0) {
+        oss << "РЕЗУЛЬТАТ: ДИСПЕРСИИ РАЗЛИЧАЮТСЯ\n";
+    } else {
+        oss << "РЕЗУЛЬТАТ: ДИСПЕРСИИ НЕ РАЗЛИЧАЮТСЯ\n";
+    }
+
+    return QString::fromStdString(oss.str());
+}
+
+/**
+ * @brief Форматирование результатов t-критерия
+ */
+QString StatisticsWorker::formatStudentResult(const StudentTestResult& result)
+{
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(6);
+
+    oss << "========================================\n";
+    oss << "  t-КРИТЕРИЙ СТЬЮДЕНТА\n";
+    oss << "========================================\n\n";
+
+    oss << "Метод: " << result.test_type << "\n";
+    oss << "Выборки: n₁ = " << result.n1 << ", n₂ = " << result.n2 << "\n";
+    oss << "Средние: x̄₁ = " << result.mean1 << ", x̄₂ = " << result.mean2 << "\n";
+    oss << "СКО: s₁ = " << result.std1 << ", s₂ = " << result.std2 << "\n\n";
+
+    oss << "t-статистика = " << result.t_statistic << "\n";
+    oss << "Критическое значение = " << result.critical_value << "\n";
+    oss << "P-значение = " << std::setprecision(4) << result.p_value << "\n";
+    oss << "Степени свободы = " << std::setprecision(2) << result.df << "\n\n";
+
+    if (result.reject_h0) {
+        oss << "РЕЗУЛЬТАТ: СРЕДНИЕ РАЗЛИЧАЮТСЯ\n";
+    } else {
+        oss << "РЕЗУЛЬТАТ: СРЕДНИЕ НЕ РАЗЛИЧАЮТСЯ\n";
+    }
+
+    return QString::fromStdString(oss.str());
+}
+
+/**
+ * @brief Форматирование доверительных интервалов
+ */
+QString StatisticsWorker::formatConfidenceIntervals(const ConfidenceIntervals& ci)
+{
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(4);
+
+    oss << "========================================\n";
+    oss << "  ДОВЕРИТЕЛЬНЫЕ ИНТЕРВАЛЫ\n";
+    oss << "========================================\n\n";
+
+    // ДИ для среднего (известная σ)
+    oss << "1. ДИ для μ при ИЗВЕСТНОЙ σ:\n";
+    oss << "   Оценка: " << ci.mean_known_sigma.point_est << "\n";
+    oss << "   " << (ci.mean_known_sigma.confidence * 100) << "% ДИ: ["
+        << ci.mean_known_sigma.lower << ", "
+        << ci.mean_known_sigma.upper << "]\n\n";
+
+    // ДИ для среднего (неизвестная σ)
+    oss << "2. ДИ для μ при НЕИЗВЕСТНОЙ σ:\n";
+    oss << "   Оценка: " << ci.mean_unknown_sigma.point_est << "\n";
+    oss << "   " << (ci.mean_unknown_sigma.confidence * 100) << "% ДИ: ["
+        << ci.mean_unknown_sigma.lower << ", "
+        << ci.mean_unknown_sigma.upper << "]\n\n";
+
+    // ДИ для дисперсии
+    oss << "3. ДИ для σ²:\n";
+    oss << "   Оценка: " << ci.variance.point_est << "\n";
+    oss << "   " << (ci.variance.confidence * 100) << "% ДИ: ["
+        << ci.variance.lower << ", "
+        << ci.variance.upper << "]\n\n";
+
+    // ДИ для СКО
+    oss << "4. ДИ для σ:\n";
+    oss << "   Оценка: " << ci.sigma.point_est << "\n";
+    oss << "   " << (ci.sigma.confidence * 100) << "% ДИ: ["
+        << ci.sigma.lower << ", "
+        << ci.sigma.upper << "]\n";
+
+    return QString::fromStdString(oss.str());
+}

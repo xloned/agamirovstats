@@ -91,6 +91,7 @@ help:
 	@echo "  make visualize    - То же что и 'make run' (визуализация встроена)"
 	@echo "  make check-deps   - Проверка зависимостей"
 	@echo "  make help         - Показать эту справку"
+	@echo "  make gui          - Собрать и запустить GUI"
 	@echo ""
 	@echo "Примечание: Программа автоматически создает все 7 графиков при каждом запуске!"
 
@@ -116,3 +117,48 @@ $(SRC_DIR)/confidence_intervals.o: $(INCLUDE_DIR)/confidence_intervals.h $(INCLU
 $(SRC_DIR)/statistical_tests.o: $(INCLUDE_DIR)/statistical_tests.h $(INCLUDE_DIR)/boost_distributions.h
 
 .PHONY: all clean clean-obj run rebuild visualize check-deps help directories
+
+# ==================== GUI TARGETS ====================
+
+# Сборка GUI
+gui-build:
+	@echo "Сборка GUI приложения..."
+	@mkdir -p gui/build
+	@cd gui/build && cmake .. && cmake --build .
+	@echo "✓ GUI собран успешно!"
+
+# Запуск GUI
+gui: gui-build
+	@echo "Запуск GUI приложения..."
+	@cd gui/build && ./StatisticalAnalysisGUI.app/Contents/MacOS/StatisticalAnalysisGUI
+
+# Запуск GUI напрямую (без пересборки)
+gui-run:
+	@echo "Запуск GUI приложения..."
+	@cd gui/build && ./StatisticalAnalysisGUI.app/Contents/MacOS/StatisticalAnalysisGUI
+
+# Запуск GUI в фоновом режиме (через Finder)
+gui-open:
+	@echo "Запуск GUI приложения в фоновом режиме..."
+	@cd gui/build && open StatisticalAnalysisGUI.app
+
+# Очистка GUI
+gui-clean:
+	@echo "Очистка GUI..."
+	@rm -rf gui/build
+	@echo "✓ GUI очищен"
+
+# Пересборка GUI
+gui-rebuild: gui-clean gui-build
+
+# Помощь для GUI
+gui-help:
+	@echo "GUI команды:"
+	@echo "  make gui          - Собрать и запустить GUI в терминале"
+	@echo "  make gui-build    - Только сборка GUI"
+	@echo "  make gui-run      - Запустить GUI в терминале (с логами)"
+	@echo "  make gui-open     - Запустить GUI в фоновом режиме (без логов)"
+	@echo "  make gui-clean    - Очистка GUI"
+	@echo "  make gui-rebuild  - Полная пересборка GUI"
+
+.PHONY: gui gui-build gui-run gui-open gui-clean gui-rebuild gui-help

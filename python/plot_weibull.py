@@ -41,7 +41,8 @@ def plot_mle_weibull(params, data, censored, output_file):
     scale = params['parameter_1']  # λ (lambda)
     shape = params['parameter_2']  # k (форма)
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    # Увеличиваем размер для лучшего качества при масштабировании
+    fig, ax = plt.subplots(figsize=(14, 9), dpi=100)
     fig.suptitle('MLE для распределения Вейбулла', fontsize=14, fontweight='bold')
 
     complete_data = data[censored == 0]
@@ -81,7 +82,8 @@ def plot_mls_weibull(params, data, censored, output_file):
     scale = params['parameter_1']  # λ (lambda)
     shape = params['parameter_2']  # k (форма)
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    # Увеличиваем размер для лучшего качества при масштабировании
+    fig, ax = plt.subplots(figsize=(14, 9), dpi=100)
     fig.suptitle('MLS для распределения Вейбулла (цензурированные данные)',
                  fontsize=14, fontweight='bold')
 
@@ -131,15 +133,16 @@ def main():
         sys.exit(1)
     
     mode = sys.argv[1].lower()
-    
+
+    # Используем пути относительно текущей директории (которая должна быть /alg2)
     if mode == 'mle':
-        results_file = '../output/mle_weibull_complete.txt'
-        output_file = '../output/plot_mle_weibull.png'
+        results_file = 'output/mle_weibull_complete.txt'
+        output_file = 'output/plot_mle_weibull.png'
         params, data, censored = read_results(results_file)
         plot_mle_weibull(params, data, censored, output_file)
     elif mode == 'mls':
-        results_file = '../output/mls_weibull_censored.txt'
-        output_file = '../output/plot_mls_weibull.png'
+        results_file = 'output/mls_weibull_censored.txt'
+        output_file = 'output/plot_mls_weibull.png'
         params, data, censored = read_results(results_file)
         plot_mls_weibull(params, data, censored, output_file)
     else:

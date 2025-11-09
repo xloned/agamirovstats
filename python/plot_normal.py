@@ -40,7 +40,8 @@ def plot_mle_normal(params, data, censored, output_file):
     mean = params['parameter_1']
     std = params['parameter_2']
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    # Увеличиваем размер для лучшего качества при масштабировании
+    fig, ax = plt.subplots(figsize=(14, 9), dpi=100)
     fig.suptitle('MLE для нормального распределения', fontsize=14, fontweight='bold')
 
     complete_data = data[censored == 0]
@@ -80,7 +81,8 @@ def plot_mls_normal(params, data, censored, output_file):
     mean = params['parameter_1']
     std = params['parameter_2']
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    # Увеличиваем размер для лучшего качества при масштабировании
+    fig, ax = plt.subplots(figsize=(14, 9), dpi=100)
     fig.suptitle('MLS для нормального распределения (цензурированные данные)',
                  fontsize=14, fontweight='bold')
 
@@ -130,15 +132,16 @@ def main():
         sys.exit(1)
     
     mode = sys.argv[1].lower()
-    
+
+    # Используем абсолютные пути относительно текущей директории (которая должна быть /alg2)
     if mode == 'mle':
-        results_file = '../output/mle_normal_complete.txt'
-        output_file = '../output/plot_mle_normal.png'
+        results_file = 'output/mle_normal_complete.txt'
+        output_file = 'output/plot_mle_normal.png'
         params, data, censored = read_results(results_file)
         plot_mle_normal(params, data, censored, output_file)
     elif mode == 'mls':
-        results_file = '../output/mls_normal_censored.txt'
-        output_file = '../output/plot_mls_normal.png'
+        results_file = 'output/mls_normal_complete.txt'
+        output_file = 'output/plot_mls_normal.png'
         params, data, censored = read_results(results_file)
         plot_mls_normal(params, data, censored, output_file)
     else:
