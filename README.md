@@ -2,6 +2,12 @@
 
 Проект для оценки параметров нормального распределения и распределения Вейбулла методами максимального правдоподобия (MLE) и метода наименьших квадратов (MLS) с поддержкой цензурированных данных.
 
+## Версии приложения
+
+- **CLI** - Консольное приложение для Linux/macOS/Windows
+- **GUI (Qt)** - Графическое приложение для macOS (ветка `feature/macos-gui-support`)
+- **GUI (Windows Forms)** - Графическое приложение для Windows (ветка `feature/windows-forms`)
+
 ## Возможности
 
 - **MLE/MLS оценка параметров** для нормального распределения и распределения Вейбулла
@@ -114,6 +120,32 @@ make run
 ```cmd
 mle_estimator.exe
 ```
+
+### GUI приложения
+
+#### macOS (Qt)
+
+```bash
+# Переключиться на ветку macOS GUI
+git checkout feature/macos-gui-support
+
+# Собрать и запустить
+make gui
+```
+
+См. [gui/README.md](gui/README.md) для подробной информации.
+
+#### Windows (Windows Forms)
+
+```cmd
+# Переключиться на ветку Windows Forms
+git checkout feature/windows-forms
+
+# Открыть в Visual Studio
+winforms\StatisticalAnalysisWinForms.sln
+```
+
+См. [winforms/README.md](winforms/README.md) для подробной информации.
 
 ## Структура проекта
 
