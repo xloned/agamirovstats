@@ -55,6 +55,8 @@ private:
     QString runStudentTestEqual();
     QString runStudentTestUnequal();
     QString runStudentTestAuto();
+    QString runConfidenceIntervals();
+    QString runPercentiles();
 
     QString formatMLEResult(const MLEResult& result, const QString& title);
     QString formatStudentResult(const StudentTestResult& result);

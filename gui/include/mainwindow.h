@@ -125,8 +125,10 @@ private:
 
     // Текущие данные
     std::vector<double> currentData;
+    std::vector<double> currentData2;  // Вторая выборка для Fisher/Student тестов
     std::vector<int> currentCensored;  // Флаги цензуры (0 = нецензурировано, 1 = цензурировано)
     QString currentInputFile;
+    QString currentInputFile2;  // Файл второй выборки
     QString currentOutputFile;
 
     // Параметры анализа

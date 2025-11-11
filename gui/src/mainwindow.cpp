@@ -88,6 +88,10 @@ void MainWindow::setupUI()
     ui->progressBar->setValue(0);
     ui->progressBar->setVisible(false);
 
+    // По умолчанию вкладка "График" включена
+    // Будет отключаться для Граббса и Фишера в onAnalysisTypeChanged
+    ui->tabWidget->setTabEnabled(1, true);
+
     // Установить шрифт для результатов
     QFont monoFont("Courier", 10);
     ui->resultsText->setFont(monoFont);
@@ -167,6 +171,7 @@ void MainWindow::onRunAnalysis()
 
     // Определить тип задачи
     int analysisIndex = ui->analysisTypeCombo->currentIndex();
+    currentAnalysisType = static_cast<AnalysisType>(analysisIndex);  // Обновить currentAnalysisType
     StatisticsWorker::TaskType task;
 
     switch (analysisIndex) {
@@ -179,6 +184,93 @@ void MainWindow::onRunAnalysis()
         case 6: task = StatisticsWorker::TASK_CONFIDENCE_INTERVALS; break;
         case 7: task = StatisticsWorker::TASK_PERCENTILES; break;
         default: task = StatisticsWorker::TASK_MLE_NORMAL;
+    }
+
+    // Для Fisher и Student тестов нужны две выборки
+    if (task == StatisticsWorker::TASK_FISHER ||
+        task == StatisticsWorker::TASK_STUDENT_EQUAL ||
+        task == StatisticsWorker::TASK_STUDENT_UNEQUAL ||
+        task == StatisticsWorker::TASK_STUDENT_AUTO) {
+
+        // ВСЕГДА запрашивать вторую выборку для каждого теста
+        // (не использовать повторно предыдущую выборку)
+        QString rootPath = getProjectRootPath();
+        QString inputDir = rootPath + "/input";
+        QString fileName = QFileDialog::getOpenFileName(this,
+            "Выберите файл второй выборки", inputDir,
+            "Data files (*.txt);;All files (*)");
+
+        if (fileName.isEmpty()) {
+            showError("Для этого теста требуется две выборки");
+            ui->runButton->setEnabled(true);
+            ui->progressBar->setVisible(false);
+            return;
+        }
+
+        currentData2 = loadDataFromFile(fileName);
+        currentInputFile2 = fileName;
+
+        if (currentData2.empty()) {
+            showError("Не удалось загрузить вторую выборку");
+            ui->runButton->setEnabled(true);
+            ui->progressBar->setVisible(false);
+            return;
+        }
+
+        // Обновить статистику для второй выборки
+        double sum2 = std::accumulate(currentData2.begin(), currentData2.end(), 0.0);
+        double mean2 = sum2 / currentData2.size();
+        double variance2 = 0.0;
+        for (double x : currentData2) {
+            variance2 += (x - mean2) * (x - mean2);
+        }
+        variance2 /= currentData2.size();
+        double std_dev2 = std::sqrt(variance2);
+        double min_val2 = *std::min_element(currentData2.begin(), currentData2.end());
+        double max_val2 = *std::max_element(currentData2.begin(), currentData2.end());
+
+        // Обновить статистику для первой выборки
+        double sum1 = std::accumulate(currentData.begin(), currentData.end(), 0.0);
+        double mean1 = sum1 / currentData.size();
+        double variance1 = 0.0;
+        for (double x : currentData) {
+            variance1 += (x - mean1) * (x - mean1);
+        }
+        variance1 /= currentData.size();
+        double std_dev1 = std::sqrt(variance1);
+        double min_val1 = *std::min_element(currentData.begin(), currentData.end());
+        double max_val1 = *std::max_element(currentData.begin(), currentData.end());
+
+        QString stats = QString(
+            "Выборка 1:\n"
+            "Размер: %1\n"
+            "Среднее: %2\n"
+            "СКО: %3\n"
+            "Мин: %4\n"
+            "Макс: %5\n\n"
+            "Выборка 2:\n"
+            "Размер: %6\n"
+            "Среднее: %7\n"
+            "СКО: %8\n"
+            "Мин: %9\n"
+            "Макс: %10"
+        ).arg(currentData.size())
+         .arg(mean1, 0, 'f', 4)
+         .arg(std_dev1, 0, 'f', 4)
+         .arg(min_val1, 0, 'f', 4)
+         .arg(max_val1, 0, 'f', 4)
+         .arg(currentData2.size())
+         .arg(mean2, 0, 'f', 4)
+         .arg(std_dev2, 0, 'f', 4)
+         .arg(min_val2, 0, 'f', 4)
+         .arg(max_val2, 0, 'f', 4);
+
+        ui->statsText->setPlainText(stats);
+
+        showSuccess(QString("Загружена вторая выборка: %1 значений").arg(currentData2.size()));
+
+        // Передать вторую выборку
+        worker->setData2(currentData2);
     }
 
     worker->setTask(task, currentData, ui->alphaSpinBox->value());
@@ -236,14 +328,20 @@ void MainWindow::onSaveResults()
  */
 void MainWindow::onLoadData()
 {
+    QString rootPath = getProjectRootPath();
+    QString inputDir = rootPath + "/input";
     QString fileName = QFileDialog::getOpenFileName(this,
-        "Открыть файл данных", "../input",
+        "Открыть файл данных", inputDir,
         "Data files (*.txt);;All files (*)");
 
     if (!fileName.isEmpty()) {
         currentData = loadDataFromFile(fileName);
         if (!currentData.empty()) {
             currentInputFile = fileName;
+
+            // Очистить вторую выборку при загрузке новой первой выборки
+            currentData2.clear();
+            currentInputFile2.clear();
 
             // Обновить статистику
             double sum = std::accumulate(currentData.begin(), currentData.end(), 0.0);
@@ -260,6 +358,7 @@ void MainWindow::onLoadData()
             double max_val = *std::max_element(currentData.begin(), currentData.end());
 
             QString stats = QString(
+                "Выборка 1:\n"
                 "Размер: %1\n"
                 "Среднее: %2\n"
                 "СКО: %3\n"
@@ -386,6 +485,31 @@ void MainWindow::onResultsReady(const QString& results)
             plotFile = rootPath + "/output/plot_mls_normal" + inputSuffix + ".png";
             mode = "mls";
             break;
+        case CONFIDENCE_INTERVALS:
+            // Доверительные интервалы - требует специальный скрипт
+            pythonScript = rootPath + "/python/plot_confidence_intervals.py";
+            plotFile = rootPath + "/output/plot_confidence_intervals" + inputSuffix + ".png";
+            mode = "";  // Не используется для этого скрипта
+            break;
+        case PERCENTILES:
+            // Персентили - требует специальный скрипт
+            pythonScript = rootPath + "/python/plot_percentiles.py";
+            plotFile = rootPath + "/output/plot_percentiles" + inputSuffix + ".png";
+            mode = "";  // Не используется для этого скрипта
+            break;
+        case GRUBBS_TEST:
+        case FISHER_TEST:
+            // Граббс и Фишер - только текстовая статистика, без графиков
+            updateFileList();
+            return;
+        case STUDENT_TEST:
+            // Критерий Стьюдента - использовать plot_student.py
+            // Скрипт создает три графика (auto, equal_var, unequal_var)
+            pythonScript = rootPath + "/python/plot_student.py";
+            // Будем искать файл после запуска скрипта
+            plotFile = rootPath + "/output/plot_student_auto.png";
+            mode = "";
+            break;
         default:
             // Для других типов анализа использовать встроенный график
             if (!currentData.empty() && chartViewer) {
@@ -395,8 +519,20 @@ void MainWindow::onResultsReady(const QString& results)
             return;
     }
 
-    // Удаляем старый график если существует
-    if (QFile::exists(plotFile)) {
+    // Удаляем старый график если существует (кроме критерия Стьюдента)
+    // Для критерия Стьюдента удаляем все три возможных файла
+    if (currentAnalysisType == STUDENT_TEST) {
+        QStringList filesToRemove;
+        filesToRemove << (rootPath + "/output/plot_student_auto.png");
+        filesToRemove << (rootPath + "/output/plot_student_equal_var.png");
+        filesToRemove << (rootPath + "/output/plot_student_unequal_var.png");
+        for (const QString& file : filesToRemove) {
+            if (QFile::exists(file)) {
+                QFile::remove(file);
+                qDebug() << "Deleted old plot file:" << file;
+            }
+        }
+    } else if (QFile::exists(plotFile)) {
         QFile::remove(plotFile);
         qDebug() << "Deleted old plot file:" << plotFile;
     }
@@ -413,13 +549,38 @@ void MainWindow::onResultsReady(const QString& results)
     QProcess process;
     process.setWorkingDirectory(rootPath);
 
+    // Формируем аргументы в зависимости от типа анализа
+    QStringList arguments;
+    arguments << pythonScript;
+
+    if (currentAnalysisType == CONFIDENCE_INTERVALS) {
+        // Для доверительных интервалов: script input_file output_file
+        arguments << (rootPath + "/output/confidence_intervals.txt");
+        arguments << plotFile;
+    } else if (currentAnalysisType == PERCENTILES) {
+        // Для персентилей нужно выбрать правильный файл (normal или weibull)
+        QString percentilesFile = rootPath + "/output/percentiles_normal.txt";
+        if (!QFile::exists(percentilesFile)) {
+            percentilesFile = rootPath + "/output/percentiles_weibull.txt";
+        }
+        arguments << percentilesFile;
+        arguments << plotFile;
+    } else if (currentAnalysisType == STUDENT_TEST) {
+        // plot_t_distribution.py запускается без аргументов, читает confidence_intervals.txt
+        // и создает 3 графика автоматически
+        // Не передаем аргументы
+    } else {
+        // Для MLE/MLS: script mode
+        arguments << mode;
+    }
+
     qDebug() << "Starting Python:";
     qDebug() << "  Executable:" << pythonExe;
     qDebug() << "  Script:" << pythonScript;
-    qDebug() << "  Mode:" << mode;
+    qDebug() << "  Arguments:" << arguments;
     qDebug() << "  Working dir:" << rootPath;
 
-    process.start(pythonExe, QStringList() << pythonScript << mode);
+    process.start(pythonExe, arguments);
 
     if (!process.waitForFinished(10000)) {
         qDebug() << "ERROR: Python process timeout or failed to start";
@@ -441,8 +602,26 @@ void MainWindow::onResultsReady(const QString& results)
     int exitCode = process.exitCode();
     qDebug() << "Python exit code:" << exitCode;
 
+    // Для критерия Стьюдента проверяем все три возможных файла
+    if (currentAnalysisType == STUDENT_TEST) {
+        QStringList possiblePlots;
+        possiblePlots << (rootPath + "/output/plot_student_auto.png");
+        possiblePlots << (rootPath + "/output/plot_student_equal_var.png");
+        possiblePlots << (rootPath + "/output/plot_student_unequal_var.png");
+
+        // Ищем первый существующий файл
+        plotFile = "";
+        for (const QString& file : possiblePlots) {
+            if (QFile::exists(file)) {
+                plotFile = file;
+                qDebug() << "Found plot file:" << plotFile;
+                break;
+            }
+        }
+    }
+
     // Проверяем что файл был создан
-    if (QFile::exists(plotFile)) {
+    if (!plotFile.isEmpty() && QFile::exists(plotFile)) {
         qDebug() << "Plot file created successfully:" << plotFile;
 
         // Загружаем и показываем график
@@ -470,6 +649,20 @@ void MainWindow::onResultsReady(const QString& results)
 void MainWindow::onAnalysisTypeChanged(int index)
 {
     currentAnalysisType = static_cast<AnalysisType>(index);
+
+    // Управление доступностью вкладки "График"
+    // Отключаем вкладку для Граббса и Фишера (у них нет графиков)
+    bool hasChart = true;
+    if (currentAnalysisType == GRUBBS_TEST || currentAnalysisType == FISHER_TEST) {
+        hasChart = false;
+        // Переключаемся на вкладку результатов, если текущая - график
+        if (ui->tabWidget->currentIndex() == 1) {
+            ui->tabWidget->setCurrentIndex(0);
+        }
+    }
+
+    // Включаем/отключаем вкладку "График" (индекс 1)
+    ui->tabWidget->setTabEnabled(1, hasChart);
 
     // Для тестов с двумя выборками нужно специальное окно
     if (index == 4 || index == 5) {  // Fisher или Student
@@ -602,13 +795,27 @@ void MainWindow::updateFileList()
     QDir outputDir(rootPath + "/output");
     if (outputDir.exists()) {
         QStringList outputFiles = outputDir.entryList(QStringList() << "*.txt" << "*.png", QDir::Files);
-        ui->outputFilesList->addItems(outputFiles);
+
+        // Фильтруем файлы: убираем PNG для Граббса и Фишера (у них нет графиков)
+        QStringList filteredFiles;
+        for (const QString& file : outputFiles) {
+            // Исключаем несуществующие PNG файлы для Граббса и Фишера
+            if (file.contains("grubbs") && file.endsWith(".png")) {
+                continue; // Пропускаем - у Граббса нет графика
+            }
+            if (file.contains("fisher") && file.endsWith(".png")) {
+                continue; // Пропускаем - у Фишера нет графика
+            }
+            filteredFiles.append(file);
+        }
+
+        ui->outputFilesList->addItems(filteredFiles);
 
         // Показать количество файлов в строке состояния
-        if (outputFiles.isEmpty()) {
+        if (filteredFiles.isEmpty()) {
             statusBar()->showMessage("Нет выходных файлов", 2000);
         } else {
-            statusBar()->showMessage(QString("Найдено %1 выходных файлов").arg(outputFiles.size()), 2000);
+            statusBar()->showMessage(QString("Найдено %1 выходных файлов").arg(filteredFiles.size()), 2000);
         }
     }
 }

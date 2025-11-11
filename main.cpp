@@ -342,6 +342,9 @@ int main() {
     cout << "  - Визуализация распределения Стьюдента (3 графика)..." << endl;
     run_python_script("plot_t_distribution.py");
 
+    cout << "  - Визуализация результатов t-критерия Стьюдента..." << endl;
+    run_python_script("plot_student.py");
+
     cout << "\nВизуализация завершена!" << endl;
     cout << "Графики сохранены:" << endl;
     cout << "  - output/plot_mle_normal.png" << endl;
@@ -350,6 +353,9 @@ int main() {
     cout << "  - output/plot_t_varying_df.png (неизвестная σ)" << endl;
     cout << "  - output/plot_normal_varying_sigma.png (известная σ)" << endl;
     cout << "  - output/plot_chi_squared.png (неизвестное μ)" << endl;
+    cout << "  - output/plot_student_equal_var.png (t-тест, равные дисперсии)" << endl;
+    cout << "  - output/plot_student_unequal_var.png (t-тест, неравные дисперсии)" << endl;
+    cout << "  - output/plot_student_auto.png (t-тест, автоматический выбор)" << endl;
 
     // ==================== ЗАВЕРШЕНИЕ ====================
     print_separator("ЗАВЕРШЕНИЕ ПРОГРАММЫ");

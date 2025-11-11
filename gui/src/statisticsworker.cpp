@@ -10,6 +10,7 @@
 #include "statisticsworker.h"
 #include "mle_methods.h"
 #include "statistical_tests.h"
+#include "confidence_intervals.h"
 
 #include <QDir>
 #include <QProcess>
@@ -17,6 +18,7 @@
 #include <sstream>
 #include <iomanip>
 #include <cmath>
+#include <numeric>
 
 StatisticsWorker::StatisticsWorker(QObject *parent)
     : QThread(parent)
@@ -92,6 +94,16 @@ void StatisticsWorker::run()
 
             case TASK_STUDENT_AUTO:
                 results = runStudentTestAuto();
+                success = true;
+                break;
+
+            case TASK_CONFIDENCE_INTERVALS:
+                results = runConfidenceIntervals();
+                success = true;
+                break;
+
+            case TASK_PERCENTILES:
+                results = runPercentiles();
                 success = true;
                 break;
 
@@ -232,6 +244,32 @@ QString StatisticsWorker::runGrubbsTest()
 
     GrubbsTestResult result = grubbs_test(data, alpha);
 
+    emit progressUpdated(70, "Сохранение результатов...");
+
+    // Сохранить результаты в файл для визуализации
+    QDir rootDir = QDir::current();
+    rootDir.cdUp();
+    rootDir.cdUp();
+    QString outputPath = rootDir.absolutePath() + "/output/grubbs_test_normal.txt";
+
+    QFile file(outputPath);
+    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream fileOut(&file);
+
+        fileOut << "# Данные\n";
+        for (size_t i = 0; i < data.size(); ++i) {
+            fileOut << data[i] << "\n";
+        }
+
+        fileOut << "\n# Критерий Граббса\n";
+        fileOut << "G-статистика: " << QString::number(result.test_statistic, 'f', 4) << "\n";
+        fileOut << "Критическое значение: " << QString::number(result.critical_value, 'f', 4) << "\n";
+        fileOut << "Подозрительное значение: " << QString::number(result.outlier_value, 'f', 4) << "\n";
+        fileOut << "Вывод: " << (result.is_outlier ? "Выброс обнаружен" : "Выброс не обнаружен") << "\n";
+
+        file.close();
+    }
+
     QString report;
     QTextStream out(&report);
 
@@ -296,6 +334,27 @@ QString StatisticsWorker::runStudentTestEqual()
 
     StudentTestResult result = student_test_equal_var(data, data2, alpha);
 
+    emit progressUpdated(70, "Сохранение результатов...");
+
+    // Сохранить результаты в файл используя существующую функцию
+    QDir rootDir = QDir::current();
+    rootDir.cdUp();
+    rootDir.cdUp();
+    QString outputPath = rootDir.absolutePath() + "/output/student_test_equal_var.txt";
+    print_student_result(result, outputPath.toStdString());
+
+    emit progressUpdated(85, "Построение графика...");
+
+    // Вызов Python скрипта для графика
+    QString pythonScript = rootDir.absolutePath() + "/python/plot_student.py";
+    QString pythonExe = rootDir.absolutePath() + "/python/venv/bin/python3";
+    if (!QFile::exists(pythonExe)) pythonExe = "python3";
+
+    QProcess process;
+    process.setWorkingDirectory(rootDir.absolutePath());
+    process.start(pythonExe, QStringList() << pythonScript);
+    process.waitForFinished(10000);
+
     return formatStudentResult(result);
 }
 
@@ -309,6 +368,27 @@ QString StatisticsWorker::runStudentTestUnequal()
 
     StudentTestResult result = student_test_unequal_var(data, data2, alpha);
 
+    emit progressUpdated(70, "Сохранение результатов...");
+
+    // Сохранить результаты в файл используя существующую функцию
+    QDir rootDir = QDir::current();
+    rootDir.cdUp();
+    rootDir.cdUp();
+    QString outputPath = rootDir.absolutePath() + "/output/student_test_unequal_var.txt";
+    print_student_result(result, outputPath.toStdString());
+
+    emit progressUpdated(85, "Построение графика...");
+
+    // Вызов Python скрипта для графика
+    QString pythonScript = rootDir.absolutePath() + "/python/plot_student.py";
+    QString pythonExe = rootDir.absolutePath() + "/python/venv/bin/python3";
+    if (!QFile::exists(pythonExe)) pythonExe = "python3";
+
+    QProcess process;
+    process.setWorkingDirectory(rootDir.absolutePath());
+    process.start(pythonExe, QStringList() << pythonScript);
+    process.waitForFinished(10000);
+
     return formatStudentResult(result);
 }
 
@@ -321,6 +401,27 @@ QString StatisticsWorker::runStudentTestAuto()
     }
 
     StudentTestResult result = student_test_auto(data, data2, alpha);
+
+    emit progressUpdated(70, "Сохранение результатов...");
+
+    // Сохранить результаты в файл используя существующую функцию
+    QDir rootDir = QDir::current();
+    rootDir.cdUp();
+    rootDir.cdUp();
+    QString outputPath = rootDir.absolutePath() + "/output/student_test_auto.txt";
+    print_student_result(result, outputPath.toStdString());
+
+    emit progressUpdated(85, "Построение графика...");
+
+    // Вызов Python скрипта для графика
+    QString pythonScript = rootDir.absolutePath() + "/python/plot_student.py";
+    QString pythonExe = rootDir.absolutePath() + "/python/venv/bin/python3";
+    if (!QFile::exists(pythonExe)) pythonExe = "python3";
+
+    QProcess process;
+    process.setWorkingDirectory(rootDir.absolutePath());
+    process.start(pythonExe, QStringList() << pythonScript);
+    process.waitForFinished(10000);
 
     return formatStudentResult(result);
 }
@@ -371,6 +472,113 @@ QString StatisticsWorker::formatStudentResult(const StudentTestResult& result)
     } else {
         out << "РЕЗУЛЬТАТ: СРЕДНИЕ РАВНЫ\n";
         out << "H0 принимается\n";
+    }
+
+    return report;
+}
+
+QString StatisticsWorker::runConfidenceIntervals()
+{
+    emit progressUpdated(30, "Вычисление доверительных интервалов...");
+
+    // Вычислить все доверительные интервалы
+    ConfidenceIntervals ci = compute_all_confidence_intervals(data, -1.0, 1.0 - alpha);
+
+    emit progressUpdated(60, "Сохранение результатов...");
+
+    // Сохранить в файл
+    QDir rootDir = QDir::current();
+    rootDir.cdUp();
+    rootDir.cdUp();
+    QString outputPath = rootDir.absolutePath() + "/output/confidence_intervals.txt";
+
+    save_confidence_intervals(ci, outputPath.toStdString().c_str(), data, -1.0);
+
+    // Сформировать отчет
+    QString report;
+    QTextStream out(&report);
+
+    out << "=== Доверительные интервалы (уровень доверия: "
+        << QString::number((1.0 - alpha) * 100, 'f', 1) << "%) ===\n\n";
+
+    out << "Размер выборки: n = " << data.size() << "\n\n";
+
+    out << "1. ДИ для μ (при известной σ):\n";
+    out << "   Точечная оценка: " << QString::number(ci.mean_known_sigma.point_est, 'f', 4) << "\n";
+    out << "   Интервал: [" << QString::number(ci.mean_known_sigma.lower, 'f', 4)
+        << ", " << QString::number(ci.mean_known_sigma.upper, 'f', 4) << "]\n\n";
+
+    out << "2. ДИ для μ (при неизвестной σ):\n";
+    out << "   Точечная оценка: " << QString::number(ci.mean_unknown_sigma.point_est, 'f', 4) << "\n";
+    out << "   Интервал: [" << QString::number(ci.mean_unknown_sigma.lower, 'f', 4)
+        << ", " << QString::number(ci.mean_unknown_sigma.upper, 'f', 4) << "]\n\n";
+
+    out << "3. ДИ для σ²:\n";
+    out << "   Точечная оценка: " << QString::number(ci.variance.point_est, 'f', 4) << "\n";
+    out << "   Интервал: [" << QString::number(ci.variance.lower, 'f', 4)
+        << ", " << QString::number(ci.variance.upper, 'f', 4) << "]\n\n";
+
+    out << "4. ДИ для σ:\n";
+    out << "   Точечная оценка: " << QString::number(ci.sigma.point_est, 'f', 4) << "\n";
+    out << "   Интервал: [" << QString::number(ci.sigma.lower, 'f', 4)
+        << ", " << QString::number(ci.sigma.upper, 'f', 4) << "]\n";
+
+    return report;
+}
+
+QString StatisticsWorker::runPercentiles()
+{
+    emit progressUpdated(30, "Вычисление персентилей...");
+
+    // Вычислить среднее и стандартное отклонение
+    double sum = std::accumulate(data.begin(), data.end(), 0.0);
+    double mean = sum / data.size();
+
+    double variance = 0.0;
+    for (double x : data) {
+        variance += (x - mean) * (x - mean);
+    }
+    variance /= (data.size() - 1);
+    double sigma = std::sqrt(variance);
+
+    // Уровни персентилей
+    std::vector<double> p_levels = {0.01, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.99};
+
+    // Вычислить персентили для нормального распределения
+    Percentiles percentiles = compute_normal_percentiles(mean, sigma, data.size(), p_levels, 1.0 - alpha);
+
+    emit progressUpdated(60, "Сохранение результатов...");
+
+    // Сохранить в файл
+    QDir rootDir = QDir::current();
+    rootDir.cdUp();
+    rootDir.cdUp();
+    QString outputPath = rootDir.absolutePath() + "/output/percentiles_normal.txt";
+
+    save_percentiles(percentiles, outputPath.toStdString().c_str());
+
+    // Сформировать отчет
+    QString report;
+    QTextStream out(&report);
+
+    out << "=== Персентили (Нормальное распределение) ===\n\n";
+    out << "Параметры: μ = " << QString::number(mean, 'f', 4)
+        << ", σ = " << QString::number(sigma, 'f', 4) << "\n";
+    out << "Размер выборки: n = " << data.size() << "\n";
+    out << "Уровень доверия: " << QString::number((1.0 - alpha) * 100, 'f', 1) << "%\n\n";
+
+    out << QString("%1  %2  %3\n")
+           .arg("P", -8)
+           .arg("Значение", -12)
+           .arg("95% ДИ", -25);
+    out << QString("-").repeated(50) << "\n";
+
+    for (const auto& p : percentiles.percentiles) {
+        out << QString("%1  %2  [%3, %4]\n")
+               .arg(QString::number(p.p * 100, 'f', 1) + "%", -8)
+               .arg(QString::number(p.value, 'f', 4), -12)
+               .arg(QString::number(p.lower, 'f', 4), -10)
+               .arg(QString::number(p.upper, 'f', 4), -10);
     }
 
     return report;

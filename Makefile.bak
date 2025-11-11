@@ -91,10 +91,8 @@ help:
 	@echo "  make visualize    - То же что и 'make run' (визуализация встроена)"
 	@echo "  make check-deps   - Проверка зависимостей"
 	@echo "  make help         - Показать эту справку"
-	@echo "  make gui          - Очистить, собрать и запустить GUI (рекомендуется)"
-	@echo "  make gui-help     - Показать все GUI команды"
 	@echo ""
-	@echo "Примечание: Программа автоматически создает все графики при каждом запуске!"
+	@echo "Примечание: Программа автоматически создает все 7 графиков при каждом запуске!"
 
 # Зависимости заголовочных файлов
 main.o: $(INCLUDE_DIR)/mle_methods.h $(INCLUDE_DIR)/nelder_mead.h \
@@ -125,22 +123,17 @@ $(SRC_DIR)/statistical_tests.o: $(INCLUDE_DIR)/statistical_tests.h $(INCLUDE_DIR
 gui-build:
 	@echo "Сборка GUI приложения..."
 	@mkdir -p gui/build
-	@cd gui/build && cmake .. > /dev/null 2>&1 && cmake --build . --config Release
+	@cd gui/build && cmake .. && cmake --build .
 	@echo "✓ GUI собран успешно!"
 
-# Запуск GUI (с автоочисткой перед сборкой)
-gui: gui-clean gui-build
+# Запуск GUI
+gui: gui-build
 	@echo "Запуск GUI приложения..."
-	@open gui/build/StatisticalAnalysisGUI.app
+	@cd gui/build && open StatisticalAnalysisGUI.app
 
 # Запуск GUI напрямую (без пересборки)
 gui-run:
 	@echo "Запуск GUI приложения..."
-	@cd gui/build && ./StatisticalAnalysisGUI.app/Contents/MacOS/StatisticalAnalysisGUI
-
-# Запуск GUI в фоновом режиме (через Finder)
-gui-open:
-	@echo "Запуск GUI приложения в фоновом режиме..."
 	@cd gui/build && open StatisticalAnalysisGUI.app
 
 # Очистка GUI
@@ -155,11 +148,10 @@ gui-rebuild: gui-clean gui-build
 # Помощь для GUI
 gui-help:
 	@echo "GUI команды:"
-	@echo "  make gui          - Очистить, собрать и запустить GUI (рекомендуется)"
-	@echo "  make gui-build    - Только сборка GUI (без очистки)"
-	@echo "  make gui-run      - Запустить GUI в терминале (с логами, без пересборки)"
-	@echo "  make gui-open     - Запустить GUI в фоновом режиме (без пересборки)"
+	@echo "  make gui          - Собрать и запустить GUI"
+	@echo "  make gui-build    - Только сборка GUI"
+	@echo "  make gui-run      - Запустить GUI без пересборки"
 	@echo "  make gui-clean    - Очистка GUI"
-	@echo "  make gui-rebuild  - То же что и 'make gui' (очистка + сборка)"
+	@echo "  make gui-rebuild  - Полная пересборка GUI"
 
-.PHONY: gui gui-build gui-run gui-open gui-clean gui-rebuild gui-help
+.PHONY: gui gui-build gui-run gui-clean gui-rebuild gui-help
