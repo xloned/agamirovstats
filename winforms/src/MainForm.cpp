@@ -156,26 +156,28 @@ namespace StatisticalAnalysis {
 
             if (this->radioMLENormal->Checked)
             {
-                pythonScript = "python/plot_normal.py";
+                pythonScript = "python\\plot_normal.py";
             }
             else
             {
-                pythonScript = "python/plot_weibull.py";
+                pythonScript = "python\\plot_weibull.py";
             }
 
-            // Формируем команду для запуска Python
-            String^ command = String::Format(
-                "python/venv/bin/python {0} input/{1} output mle",
+            // Формируем команду для запуска Python (Windows paths)
+            String^ pythonExe = "python\\venv\\Scripts\\python.exe";
+            String^ arguments = String::Format(
+                "{0} input\\{1} output mle",
                 pythonScript,
                 Path::GetFileName(this->currentFileName)
             );
 
             Process^ process = gcnew Process();
-            process->StartInfo->FileName = "bash";
-            process->StartInfo->Arguments = "-c \"" + command + "\"";
+            process->StartInfo->FileName = pythonExe;
+            process->StartInfo->Arguments = arguments;
             process->StartInfo->UseShellExecute = false;
             process->StartInfo->RedirectStandardOutput = true;
             process->StartInfo->RedirectStandardError = true;
+            process->StartInfo->WorkingDirectory = Directory::GetCurrentDirectory();
             process->Start();
             process->WaitForExit();
 
@@ -242,16 +244,18 @@ namespace StatisticalAnalysis {
 
             free_mle_result(result);
 
-            // Запуск Python для графика
-            String^ command = String::Format(
-                "python/venv/bin/python python/plot_normal.py input/{0} output mls",
+            // Запуск Python для графика (Windows paths)
+            String^ pythonExe = "python\\venv\\Scripts\\python.exe";
+            String^ arguments = String::Format(
+                "python\\plot_normal.py input\\{0} output mls",
                 Path::GetFileName(this->currentFileName)
             );
 
             Process^ process = gcnew Process();
-            process->StartInfo->FileName = "bash";
-            process->StartInfo->Arguments = "-c \"" + command + "\"";
+            process->StartInfo->FileName = pythonExe;
+            process->StartInfo->Arguments = arguments;
             process->StartInfo->UseShellExecute = false;
+            process->StartInfo->WorkingDirectory = Directory::GetCurrentDirectory();
             process->Start();
             process->WaitForExit();
 
