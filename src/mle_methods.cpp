@@ -3,6 +3,9 @@
 #include "nelder_mead.h"
 #include "matrix_operations.h"
 #include "order.h"
+
+// Определение M_PI для MSVC (Windows)
+#define _USE_MATH_DEFINES
 #include <cmath>
 #include <numeric>
 #include <iostream>

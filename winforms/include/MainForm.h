@@ -1,5 +1,13 @@
 #pragma once
 
+// Включаем Windows.h до .NET заголовков для избежания конфликтов COM интерфейсов
+#include <windows.h>
+
+// Отключаем предупреждения о переопределении
+#pragma warning(push)
+#pragma warning(disable: 4099)  // тип переопределения
+#pragma warning(disable: 4244)  // преобразование типов
+
 using namespace System;
 using namespace System::ComponentModel;
 using namespace System::Collections;
@@ -405,3 +413,6 @@ namespace StatisticalAnalysis {
         void ClearOutputFolder(void);
     };
 }
+
+// Восстанавливаем предупреждения
+#pragma warning(pop)
