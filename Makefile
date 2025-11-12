@@ -128,19 +128,19 @@ gui-build:
 	@cd gui/build && cmake .. > /dev/null 2>&1 && cmake --build . --config Release
 	@echo "✓ GUI собран успешно!"
 
-# Запуск GUI (с автоочисткой перед сборкой)
+# Запуск GUI (с автоочисткой перед сборкой) - запуск через терминал для корректной работы Python
 gui: gui-clean gui-build
 	@echo "Запуск GUI приложения..."
-	@open gui/build/StatisticalAnalysisGUI.app
+	@cd gui/build && ./StatisticalAnalysisGUI.app/Contents/MacOS/StatisticalAnalysisGUI
 
-# Запуск GUI напрямую (без пересборки)
+# Запуск GUI напрямую (без пересборки) - запуск через терминал
 gui-run:
 	@echo "Запуск GUI приложения..."
 	@cd gui/build && ./StatisticalAnalysisGUI.app/Contents/MacOS/StatisticalAnalysisGUI
 
-# Запуск GUI в фоновом режиме (через Finder)
+# Запуск GUI в фоновом режиме (через Finder) - ВНИМАНИЕ: Python скрипты могут не работать при запуске через open
 gui-open:
-	@echo "Запуск GUI приложения в фоновом режиме..."
+	@echo "Запуск GUI приложения в фоновом режиме (Python скрипты могут не работать)..."
 	@cd gui/build && open StatisticalAnalysisGUI.app
 
 # Очистка GUI

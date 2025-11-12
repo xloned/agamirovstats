@@ -133,9 +133,11 @@ QString StatisticsWorker::runMLENormal()
     emit progressUpdated(60, "Сохранение результатов...");
 
     // Сохранение в файл (используем существующую функцию)
+    // Определяем корневую директорию проекта (ищем папку python)
     QDir rootDir = QDir::current();
-    rootDir.cdUp();
-    rootDir.cdUp();
+    while (!rootDir.exists("python") && rootDir.cdUp()) {
+        // продолжаем подниматься вверх пока не найдем папку python
+    }
     QString outputPath = rootDir.absolutePath() + "/output/mle_normal_complete.txt";
 
     // Использовать переданные флаги цензуры или создать нецензурированные
@@ -172,9 +174,11 @@ QString StatisticsWorker::runMLEWeibull()
 
     emit progressUpdated(60, "Сохранение результатов...");
 
+    // Определяем корневую директорию проекта (ищем папку python)
     QDir rootDir = QDir::current();
-    rootDir.cdUp();
-    rootDir.cdUp();
+    while (!rootDir.exists("python") && rootDir.cdUp()) {
+        // продолжаем подниматься вверх пока не найдем папку python
+    }
     QString outputPath = rootDir.absolutePath() + "/output/mle_weibull_complete.txt";
 
     // Использовать переданные флаги цензуры или создать нецензурированные
@@ -209,9 +213,11 @@ QString StatisticsWorker::runMLSNormal()
 
     emit progressUpdated(60, "Сохранение результатов...");
 
+    // Определяем корневую директорию проекта (ищем папку python)
     QDir rootDir = QDir::current();
-    rootDir.cdUp();
-    rootDir.cdUp();
+    while (!rootDir.exists("python") && rootDir.cdUp()) {
+        // продолжаем подниматься вверх пока не найдем папку python
+    }
     QString outputPath = rootDir.absolutePath() + "/output/mls_normal_complete.txt";
 
     // Использовать переданные флаги цензуры или создать нецензурированные
@@ -247,9 +253,11 @@ QString StatisticsWorker::runGrubbsTest()
     emit progressUpdated(70, "Сохранение результатов...");
 
     // Сохранить результаты в файл для визуализации
+    // Определяем корневую директорию проекта (ищем папку python)
     QDir rootDir = QDir::current();
-    rootDir.cdUp();
-    rootDir.cdUp();
+    while (!rootDir.exists("python") && rootDir.cdUp()) {
+        // продолжаем подниматься вверх пока не найдем папку python
+    }
     QString outputPath = rootDir.absolutePath() + "/output/grubbs_test_normal.txt";
 
     QFile file(outputPath);
@@ -337,9 +345,11 @@ QString StatisticsWorker::runStudentTestEqual()
     emit progressUpdated(70, "Сохранение результатов...");
 
     // Сохранить результаты в файл используя существующую функцию
+    // Определяем корневую директорию проекта (ищем папку python)
     QDir rootDir = QDir::current();
-    rootDir.cdUp();
-    rootDir.cdUp();
+    while (!rootDir.exists("python") && rootDir.cdUp()) {
+        // продолжаем подниматься вверх пока не найдем папку python
+    }
     QString outputPath = rootDir.absolutePath() + "/output/student_test_equal_var.txt";
     print_student_result(result, outputPath.toStdString());
 
@@ -371,9 +381,11 @@ QString StatisticsWorker::runStudentTestUnequal()
     emit progressUpdated(70, "Сохранение результатов...");
 
     // Сохранить результаты в файл используя существующую функцию
+    // Определяем корневую директорию проекта (ищем папку python)
     QDir rootDir = QDir::current();
-    rootDir.cdUp();
-    rootDir.cdUp();
+    while (!rootDir.exists("python") && rootDir.cdUp()) {
+        // продолжаем подниматься вверх пока не найдем папку python
+    }
     QString outputPath = rootDir.absolutePath() + "/output/student_test_unequal_var.txt";
     print_student_result(result, outputPath.toStdString());
 
@@ -405,9 +417,11 @@ QString StatisticsWorker::runStudentTestAuto()
     emit progressUpdated(70, "Сохранение результатов...");
 
     // Сохранить результаты в файл используя существующую функцию
+    // Определяем корневую директорию проекта (ищем папку python)
     QDir rootDir = QDir::current();
-    rootDir.cdUp();
-    rootDir.cdUp();
+    while (!rootDir.exists("python") && rootDir.cdUp()) {
+        // продолжаем подниматься вверх пока не найдем папку python
+    }
     QString outputPath = rootDir.absolutePath() + "/output/student_test_auto.txt";
     print_student_result(result, outputPath.toStdString());
 
@@ -487,9 +501,11 @@ QString StatisticsWorker::runConfidenceIntervals()
     emit progressUpdated(60, "Сохранение результатов...");
 
     // Сохранить в файл
+    // Определяем корневую директорию проекта (ищем папку python)
     QDir rootDir = QDir::current();
-    rootDir.cdUp();
-    rootDir.cdUp();
+    while (!rootDir.exists("python") && rootDir.cdUp()) {
+        // продолжаем подниматься вверх пока не найдем папку python
+    }
     QString outputPath = rootDir.absolutePath() + "/output/confidence_intervals.txt";
 
     save_confidence_intervals(ci, outputPath.toStdString().c_str(), data, -1.0);
@@ -550,9 +566,11 @@ QString StatisticsWorker::runPercentiles()
     emit progressUpdated(60, "Сохранение результатов...");
 
     // Сохранить в файл
+    // Определяем корневую директорию проекта (ищем папку python)
     QDir rootDir = QDir::current();
-    rootDir.cdUp();
-    rootDir.cdUp();
+    while (!rootDir.exists("python") && rootDir.cdUp()) {
+        // продолжаем подниматься вверх пока не найдем папку python
+    }
     QString outputPath = rootDir.absolutePath() + "/output/percentiles_normal.txt";
 
     save_percentiles(percentiles, outputPath.toStdString().c_str());
