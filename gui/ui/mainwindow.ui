@@ -79,6 +79,21 @@
            <string>Персентили (квантили)</string>
           </property>
          </item>
+         <item>
+          <property name="text">
+           <string>ANOVA (Дисперсионный анализ)</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Shapiro-Wilk (Проверка нормальности)</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Wilcoxon Rank-Sum (Непараметрический тест)</string>
+          </property>
+         </item>
         </widget>
        </item>
 

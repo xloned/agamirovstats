@@ -139,11 +139,17 @@ private:
         GRUBBS_TEST,
         FISHER_TEST,
         STUDENT_TEST,
+        ANOVA_TEST,
+        SHAPIRO_WILK_TEST,
+        WILCOXON_RANKSUM_TEST,
         CONFIDENCE_INTERVALS,
         PERCENTILES
     };
 
     AnalysisType currentAnalysisType;
+
+    // Дополнительные данные для ANOVA (несколько групп)
+    std::vector<std::vector<double>> anovaGroups;
 };
 
 #endif // MAINWINDOW_H

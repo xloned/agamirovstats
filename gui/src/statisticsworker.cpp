@@ -11,10 +11,14 @@
 #include "mle_methods.h"
 #include "statistical_tests.h"
 #include "confidence_intervals.h"
+#include "anova.h"
+#include "shapiro_wilk.h"
+#include "wilcoxon_ranksum.h"
 
 #include <QDir>
 #include <QProcess>
 #include <QFile>
+#include <QDebug>
 #include <sstream>
 #include <iomanip>
 #include <cmath>
@@ -46,6 +50,11 @@ void StatisticsWorker::setCensored(const std::vector<int>& c)
 void StatisticsWorker::setData2(const std::vector<double>& d)
 {
     data2 = d;
+}
+
+void StatisticsWorker::setANOVAGroups(const std::vector<std::vector<double>>& groups)
+{
+    anovaGroups = groups;
 }
 
 void StatisticsWorker::run()
@@ -94,6 +103,21 @@ void StatisticsWorker::run()
 
             case TASK_STUDENT_AUTO:
                 results = runStudentTestAuto();
+                success = true;
+                break;
+
+            case TASK_ANOVA:
+                results = runANOVA();
+                success = true;
+                break;
+
+            case TASK_SHAPIRO_WILK:
+                results = runShapiroWilk();
+                success = true;
+                break;
+
+            case TASK_WILCOXON_RANKSUM:
+                results = runWilcoxonRankSum();
                 success = true;
                 break;
 
@@ -598,6 +622,214 @@ QString StatisticsWorker::runPercentiles()
                .arg(QString::number(p.lower, 'f', 4), -10)
                .arg(QString::number(p.upper, 'f', 4), -10);
     }
+
+    return report;
+}
+
+QString StatisticsWorker::runANOVA()
+{
+    emit progressUpdated(50, "Выполнение дисперсионного анализа ANOVA...");
+
+    // Выполнить ANOVA тест
+    ANOVAResult result = anova_one_way(anovaGroups, alpha);
+
+    emit progressUpdated(70, "Сохранение результатов...");
+
+    // Определяем корневую директорию проекта
+    QDir rootDir = QDir::current();
+    while (!rootDir.exists("python") && rootDir.cdUp()) {
+    }
+    QString outputPath = rootDir.absolutePath() + "/output/anova_result.txt";
+
+    // Сохранить в файл
+    print_anova_result(result, outputPath.toStdString());
+
+    // Сформировать отчет
+    QString report = formatANOVAResult(result);
+
+    return report;
+}
+
+QString StatisticsWorker::runShapiroWilk()
+{
+    emit progressUpdated(50, "Выполнение теста Шапиро-Уилка...");
+
+    // Выполнить тест Шапиро-Уилка
+    ShapiroWilkResult result = shapiro_wilk_test(data, alpha);
+
+    emit progressUpdated(70, "Сохранение результатов...");
+
+    // Определяем корневую директорию проекта
+    QDir rootDir = QDir::current();
+    while (!rootDir.exists("python") && rootDir.cdUp()) {
+    }
+    QString outputPath = rootDir.absolutePath() + "/output/shapiro_wilk_result.txt";
+
+    // Сохранить результаты теста в файл
+    print_shapiro_wilk_result(result, outputPath.toStdString());
+
+    // Сформировать отчет
+    QString report = formatShapiroWilkResult(result);
+
+    return report;
+}
+
+QString StatisticsWorker::runWilcoxonRankSum()
+{
+    emit progressUpdated(50, "Выполнение теста Уилкоксона...");
+
+    // Выполнить тест ранга суммы Уилкоксона
+    WilcoxonRankSumResult result = wilcoxon_ranksum_test(data, data2, alpha);
+
+    emit progressUpdated(70, "Сохранение результатов...");
+
+    // Определяем корневую директорию проекта
+    QDir rootDir = QDir::current();
+    while (!rootDir.exists("python") && rootDir.cdUp()) {
+    }
+    QString outputPath = rootDir.absolutePath() + "/output/wilcoxon_ranksum_result.txt";
+
+    // Сохранить результаты теста в файл
+    print_wilcoxon_ranksum_result(result, outputPath.toStdString());
+
+    // Сформировать отчет
+    QString report = formatWilcoxonRankSumResult(result);
+
+    return report;
+}
+
+QString StatisticsWorker::formatANOVAResult(const ANOVAResult& result)
+{
+    QString report;
+    QTextStream out(&report);
+
+    out << "=== ОДНОФАКТОРНЫЙ ДИСПЕРСИОННЫЙ АНАЛИЗ (ANOVA) ===\n\n";
+
+    out << "Количество групп: " << result.num_groups << "\n";
+    out << "Общее количество наблюдений: " << result.total_n << "\n";
+    out << "Уровень значимости: α = " << QString::number(alpha, 'f', 3) << "\n\n";
+
+    out << "Информация о группах:\n";
+    for (size_t i = 0; i < result.num_groups; ++i) {
+        out << "  Группа " << (i + 1) << ": n = " << result.group_sizes[i]
+            << ", среднее = " << QString::number(result.group_means[i], 'f', 4) << "\n";
+    }
+    out << "  Общее среднее: " << QString::number(result.grand_mean, 'f', 4) << "\n\n";
+
+    out << "Таблица дисперсионного анализа:\n";
+    out << QString("%1  %2  %3  %4  %5  %6\n")
+           .arg("Источник", -20)
+           .arg("SS", -12)
+           .arg("df", -6)
+           .arg("MS", -12)
+           .arg("F", -10)
+           .arg("p-value", -10);
+    out << QString("-").repeated(75) << "\n";
+
+    out << QString("%1  %2  %3  %4  %5  %6\n")
+           .arg("Между группами", -20)
+           .arg(QString::number(result.ss_between, 'f', 4), -12)
+           .arg(QString::number(result.df_between), -6)
+           .arg(QString::number(result.ms_between, 'f', 4), -12)
+           .arg(QString::number(result.f_statistic, 'f', 4), -10)
+           .arg(QString::number(result.p_value, 'f', 6), -10);
+
+    out << QString("%1  %2  %3  %4\n")
+           .arg("Внутри групп", -20)
+           .arg(QString::number(result.ss_within, 'f', 4), -12)
+           .arg(QString::number(result.df_within), -6)
+           .arg(QString::number(result.ms_within, 'f', 4), -12);
+
+    out << QString("%1  %2  %3\n")
+           .arg("Всего", -20)
+           .arg(QString::number(result.ss_total, 'f', 4), -12)
+           .arg(QString::number(result.df_total), -6);
+
+    out << "\n";
+    out << "F-статистика = " << QString::number(result.f_statistic, 'f', 4) << "\n";
+    out << "Критическое значение = " << QString::number(result.critical_value, 'f', 4) << "\n";
+    out << "p-value = " << QString::number(result.p_value, 'f', 6) << "\n\n";
+
+    out << "H0: μ₁ = μ₂ = ... = μₘ (средние во всех группах равны)\n";
+    if (result.reject_h0) {
+        out << "РЕЗУЛЬТАТ: H0 ОТВЕРГАЕТСЯ\n";
+        out << "Средние значения групп статистически различаются (p < α)\n";
+    } else {
+        out << "РЕЗУЛЬТАТ: H0 НЕ ОТВЕРГАЕТСЯ\n";
+        out << "Нет оснований отвергнуть гипотезу о равенстве средних (p ≥ α)\n";
+    }
+
+    return report;
+}
+
+QString StatisticsWorker::formatShapiroWilkResult(const ShapiroWilkResult& result)
+{
+    QString report;
+    QTextStream out(&report);
+
+    out << "=== КРИТЕРИЙ ШАПИРО-УИЛКА ===\n";
+    out << "Проверка нормальности распределения\n\n";
+
+    out << "Размер выборки: n = " << result.n << "\n";
+    out << "Уровень значимости: α = " << QString::number(alpha, 'f', 3) << "\n\n";
+
+    out << "W-статистика = " << QString::number(result.w_statistic, 'f', 6) << "\n";
+    out << "Критическое значение = " << QString::number(result.critical_value, 'f', 6) << "\n";
+    out << "Приблизительное p-value = " << QString::number(result.p_value, 'f', 6) << "\n\n";
+
+    out << "Примечание: W принимает значения от 0 до 1.\n";
+    out << "Значения близкие к 1 указывают на согласие с нормальным распределением.\n\n";
+
+    out << "H0: выборка получена из нормального распределения\n";
+    if (result.reject_h0) {
+        out << "РЕЗУЛЬТАТ: H0 ОТВЕРГАЕТСЯ\n";
+        out << "Выборка НЕ является нормальной (W < W_critical)\n";
+    } else {
+        out << "РЕЗУЛЬТАТ: H0 НЕ ОТВЕРГАЕТСЯ\n";
+        out << "Нет оснований отвергнуть нормальность распределения (W ≥ W_critical)\n";
+    }
+
+    return report;
+}
+
+QString StatisticsWorker::formatWilcoxonRankSumResult(const WilcoxonRankSumResult& result)
+{
+    QString report;
+    QTextStream out(&report);
+
+    out << "=== КРИТЕРИЙ РАНГА СУММЫ УИЛКОКСОНА ===\n";
+    out << "Непараметрический критерий для двух независимых выборок\n\n";
+
+    out << "Размеры выборок: n₁ = " << result.n1 << ", n₂ = " << result.n2 << "\n";
+    out << "Общее количество наблюдений: N = " << result.total_n << "\n";
+    out << "Уровень значимости: α = " << QString::number(alpha, 'f', 3) << "\n";
+    out << "Метод: " << (result.use_normal_approx ? "нормальное приближение" : "точное распределение") << "\n\n";
+
+    out << "Статистики:\n";
+    out << "  W (сумма рангов) = " << QString::number(result.w_statistic, 'f', 2) << "\n";
+    out << "  U (Манна-Уитни) = " << QString::number(result.u_statistic, 'f', 2) << "\n";
+    out << "  E[W] под H0 = " << QString::number(result.mean_w, 'f', 2) << "\n";
+    out << "  SD[W] под H0 = " << QString::number(result.std_w, 'f', 4) << "\n";
+    out << "  Z-статистика = " << QString::number(result.z_statistic, 'f', 4) << "\n\n";
+
+    if (result.num_ties > 0) {
+        out << "Обнаружено связанных групп: " << result.num_ties << "\n";
+        out << "Поправка на связи применена\n\n";
+    }
+
+    out << "Критическое значение (Z) = " << QString::number(result.critical_value, 'f', 4) << "\n";
+    out << "p-value (двусторонний) = " << QString::number(result.p_value, 'f', 6) << "\n\n";
+
+    out << "H0: F₁(x) = F₂(x) (распределения одинаковы)\n";
+    if (result.reject_h0) {
+        out << "РЕЗУЛЬТАТ: H0 ОТВЕРГАЕТСЯ\n";
+        out << "Распределения статистически различаются (|Z| > Z_critical)\n";
+    } else {
+        out << "РЕЗУЛЬТАТ: H0 НЕ ОТВЕРГАЕТСЯ\n";
+        out << "Нет оснований отвергнуть гипотезу о равенстве распределений (|Z| ≤ Z_critical)\n";
+    }
+
+    out << "\nПримечание: Тест Уилкоксона не требует нормальности и устойчив к выбросам.\n";
 
     return report;
 }
