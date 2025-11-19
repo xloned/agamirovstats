@@ -181,8 +181,9 @@ GrubbsTestResult grubbs_test(const std::vector<double>& data, double alpha) {
  * H0: σ₁² = σ₂² (дисперсии равны)
  * H1: σ₁² ≠ σ₂² (дисперсии различаются)
  *
- * Статистика: F = s₁² / s₂², где s₁² ≥ s₂²
- * Распределение под H0: F ~ F(n₁-1, n₂-1)
+ * Модифицированный критерий с настраиваемым порогом:
+ * Дисперсии считаются различными, если |σ₁² - σ₂²| ≥ alpha
+ * где alpha - порог, задаваемый пользователем через интерфейс
  */
 FisherTestResult fisher_test(const std::vector<double>& data1,
                              const std::vector<double>& data2,
@@ -203,6 +204,9 @@ FisherTestResult fisher_test(const std::vector<double>& data1,
     double mean2 = compute_mean(data2);
     result.var1 = compute_variance(data1, mean1);
     result.var2 = compute_variance(data2, mean2);
+
+    // Абсолютная разница дисперсий
+    result.var_diff = std::abs(result.var1 - result.var2);
 
     // Степени свободы
     result.df1 = data1.size() - 1;
@@ -227,8 +231,9 @@ FisherTestResult fisher_test(const std::vector<double>& data1,
     result.p_value = 2.0 * p_upper;
     if (result.p_value > 1.0) result.p_value = 1.0;
 
-    // Отвергаем H0, если F > F_critical или p_value < alpha
-    result.reject_h0 = (result.f_statistic > result.critical_value);
+    // Модифицированный критерий: проверяем порог практической значимости
+    // Дисперсии считаются различными, если разница ≥ alpha (порог задается пользователем)
+    result.reject_h0 = (result.var_diff >= alpha);
 
     return result;
 }

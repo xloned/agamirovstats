@@ -315,18 +315,43 @@ QString StatisticsWorker::runFisherTest()
     QTextStream out(&report);
 
     out << "=== F-критерий Фишера (сравнение дисперсий) ===\n\n";
-    out << "Выборка 1: n1 = " << result.n1 << ", s1^2 = " << QString::number(result.var1, 'f', 4) << "\n";
-    out << "Выборка 2: n2 = " << result.n2 << ", s2^2 = " << QString::number(result.var2, 'f', 4) << "\n\n";
-    out << "F-статистика = " << QString::number(result.f_statistic, 'f', 4) << "\n";
-    out << "Критическое значение = " << QString::number(result.critical_value, 'f', 4) << "\n";
-    out << "P-значение = " << QString::number(result.p_value, 'f', 4) << "\n\n";
+
+    out << "Описательная статистика:\n";
+    out << "Выборка 1:\n";
+    out << "  Размер выборки: n₁ = " << result.n1 << "\n";
+    out << "  Дисперсия: σ₁² = " << QString::number(result.var1, 'f', 6) << "\n";
+    out << "  Стандартное отклонение: σ₁ = " << QString::number(std::sqrt(result.var1), 'f', 6) << "\n\n";
+
+    out << "Выборка 2:\n";
+    out << "  Размер выборки: n₂ = " << result.n2 << "\n";
+    out << "  Дисперсия: σ₂² = " << QString::number(result.var2, 'f', 6) << "\n";
+    out << "  Стандартное отклонение: σ₂ = " << QString::number(std::sqrt(result.var2), 'f', 6) << "\n\n";
+
+    out << "Гипотезы:\n";
+    out << "  H₀: σ₁² = σ₂² (дисперсии равны)\n";
+    out << "  H₁: σ₁² ≠ σ₂² (дисперсии различаются)\n\n";
+
+    out << "Результаты теста:\n";
+    out << "  Абсолютная разница: |σ₁² - σ₂²| = " << QString::number(result.var_diff, 'f', 6) << "\n";
+    out << "  Порог различия (задан пользователем): " << QString::number(alpha, 'f', 3) << "\n";
+    out << "  F-статистика = " << QString::number(result.f_statistic, 'f', 6) << "\n";
+    out << "  Степени свободы: df₁ = " << (result.n1 - 1) << ", df₂ = " << (result.n2 - 1) << "\n";
+    out << "  Критическое значение = " << QString::number(result.critical_value, 'f', 6) << "\n";
+    out << "  P-значение = " << QString::number(result.p_value, 'f', 6) << "\n\n";
+
+    out << "Интерпретация:\n";
+    out << "  Отношение дисперсий: σ₁²/σ₂² = " << QString::number(result.var1 / result.var2, 'f', 4) << "\n\n";
 
     if (result.reject_h0) {
-        out << "РЕЗУЛЬТАТ: ДИСПЕРСИИ РАЗЛИЧАЮТСЯ\n";
-        out << "H0 отвергается\n";
+        out << "ВЫВОД: ДИСПЕРСИИ РАЗЛИЧАЮТСЯ\n";
+        out << "  Разница дисперсий (" << QString::number(result.var_diff, 'f', 3)
+            << ") ≥ порога (" << QString::number(alpha, 'f', 3) << ")\n";
+        out << "  Дисперсия первой выборки " << (result.var1 > result.var2 ? "больше" : "меньше")
+            << " дисперсии второй выборки\n";
     } else {
-        out << "РЕЗУЛЬТАТ: ДИСПЕРСИИ РАВНЫ\n";
-        out << "H0 принимается\n";
+        out << "ВЫВОД: ДИСПЕРСИИ НЕ РАЗЛИЧАЮТСЯ\n";
+        out << "  Разница дисперсий (" << QString::number(result.var_diff, 'f', 3)
+            << ") < порога (" << QString::number(alpha, 'f', 3) << ")\n";
     }
 
     return report;
