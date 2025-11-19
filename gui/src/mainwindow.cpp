@@ -182,11 +182,11 @@ void MainWindow::onRunAnalysis()
         case 3: task = StatisticsWorker::TASK_GRUBBS; break;
         case 4: task = StatisticsWorker::TASK_FISHER; break;
         case 5: task = StatisticsWorker::TASK_STUDENT_AUTO; break;
-        case 6: task = StatisticsWorker::TASK_CONFIDENCE_INTERVALS; break;
-        case 7: task = StatisticsWorker::TASK_PERCENTILES; break;
-        case 8: task = StatisticsWorker::TASK_ANOVA; break;
-        case 9: task = StatisticsWorker::TASK_SHAPIRO_WILK; break;
-        case 10: task = StatisticsWorker::TASK_WILCOXON_RANKSUM; break;
+        case 6: task = StatisticsWorker::TASK_ANOVA; break;
+        case 7: task = StatisticsWorker::TASK_SHAPIRO_WILK; break;
+        case 8: task = StatisticsWorker::TASK_WILCOXON_RANKSUM; break;
+        case 9: task = StatisticsWorker::TASK_CONFIDENCE_INTERVALS; break;
+        case 10: task = StatisticsWorker::TASK_PERCENTILES; break;
         default: task = StatisticsWorker::TASK_MLE_NORMAL;
     }
 

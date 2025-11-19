@@ -80,16 +80,20 @@ def read_anova_results(filename):
             # Степени свободы из таблицы
             elif 'Между группами' in line:
                 parts = line.split()
-                if len(parts) >= 3:
+                if len(parts) >= 4:
                     try:
-                        result['df_between'] = int(parts[2])
+                        # Формат: "Между группами  SS  df  MS  F  p-value"
+                        # parts: ['Между', 'группами', 'SS_value', 'df_value', ...]
+                        result['df_between'] = int(parts[3])
                     except:
                         pass
             elif 'Внутри групп' in line:
                 parts = line.split()
-                if len(parts) >= 3:
+                if len(parts) >= 4:
                     try:
-                        result['df_within'] = int(parts[2])
+                        # Формат: "Внутри групп  SS  df  MS"
+                        # parts: ['Внутри', 'групп', 'SS_value', 'df_value', ...]
+                        result['df_within'] = int(parts[3])
                     except:
                         pass
 
