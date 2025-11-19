@@ -60,6 +60,9 @@ set(STATS_SOURCES
     ../src/confidence_intervals.cpp
     ../src/order.cpp
     ../src/statistical_tests.cpp
+    ../src/anova.cpp
+    ../src/shapiro_wilk.cpp
+    ../src/wilcoxon_ranksum.cpp
 )
 
 # Ресурсы

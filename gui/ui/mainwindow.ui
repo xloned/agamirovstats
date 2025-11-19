@@ -103,6 +103,21 @@
              <string>Персентили (квантили)</string>
             </property>
            </item>
+           <item>
+            <property name="text">
+             <string>Дисперсионный анализ (ANOVA)</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Критерий Шапиро-Уилка (нормальность)</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Критерий Уилкоксона (ранговые суммы)</string>
+            </property>
+           </item>
           </widget>
          </item>
         </layout>

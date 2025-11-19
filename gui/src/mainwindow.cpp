@@ -6,6 +6,7 @@
 
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QInputDialog>
 #include <QDir>
 #include <QFile>
 #include <QTextStream>
@@ -183,14 +184,56 @@ void MainWindow::onRunAnalysis()
         case 5: task = StatisticsWorker::TASK_STUDENT_AUTO; break;
         case 6: task = StatisticsWorker::TASK_CONFIDENCE_INTERVALS; break;
         case 7: task = StatisticsWorker::TASK_PERCENTILES; break;
+        case 8: task = StatisticsWorker::TASK_ANOVA; break;
+        case 9: task = StatisticsWorker::TASK_SHAPIRO_WILK; break;
+        case 10: task = StatisticsWorker::TASK_WILCOXON_RANKSUM; break;
         default: task = StatisticsWorker::TASK_MLE_NORMAL;
     }
 
-    // Для Fisher и Student тестов нужны две выборки
-    if (task == StatisticsWorker::TASK_FISHER ||
+    // ANOVA требует несколько групп
+    if (task == StatisticsWorker::TASK_ANOVA) {
+        QMessageBox::information(this, "ANOVA",
+            "Для дисперсионного анализа выберите несколько файлов данных.\n"
+            "Каждый файл будет представлять отдельную группу (минимум 2 файла).");
+
+        QString rootPath = getProjectRootPath();
+        QString inputDir = rootPath + "/input";
+
+        // Множественный выбор файлов
+        QStringList fileNames = QFileDialog::getOpenFileNames(this,
+            "Выберите файлы групп для ANOVA (минимум 2)", inputDir,
+            "Data files (*.txt);;All files (*)");
+
+        if (fileNames.isEmpty() || fileNames.size() < 2) {
+            showError("Для ANOVA необходимо выбрать минимум 2 файла");
+            ui->runButton->setEnabled(true);
+            ui->progressBar->setVisible(false);
+            return;
+        }
+
+        anovaGroups.clear();
+
+        for (int i = 0; i < fileNames.size(); ++i) {
+            std::vector<double> groupData = loadDataFromFile(fileNames[i]);
+            if (groupData.empty()) {
+                showError(QString("Не удалось загрузить данные из файла: %1").arg(fileNames[i]));
+                ui->runButton->setEnabled(true);
+                ui->progressBar->setVisible(false);
+                return;
+            }
+
+            anovaGroups.push_back(groupData);
+        }
+
+        showSuccess(QString("Загружено %1 групп для ANOVA").arg(anovaGroups.size()));
+        worker->setANOVAGroups(anovaGroups);
+    }
+    // Для Fisher, Student и Wilcoxon тестов нужны две выборки
+    else if (task == StatisticsWorker::TASK_FISHER ||
         task == StatisticsWorker::TASK_STUDENT_EQUAL ||
         task == StatisticsWorker::TASK_STUDENT_UNEQUAL ||
-        task == StatisticsWorker::TASK_STUDENT_AUTO) {
+        task == StatisticsWorker::TASK_STUDENT_AUTO ||
+        task == StatisticsWorker::TASK_WILCOXON_RANKSUM) {
 
         // ВСЕГДА запрашивать вторую выборку для каждого теста
         // (не использовать повторно предыдущую выборку)
@@ -510,6 +553,24 @@ void MainWindow::onResultsReady(const QString& results)
             plotFile = rootPath + "/output/plot_student_auto.png";
             mode = "";
             break;
+        case ANOVA_TEST:
+            // ANOVA - запускаем Python скрипт для графиков
+            pythonScript = rootPath + "/python/plot_anova.py";
+            plotFile = rootPath + "/output/plot_anova_f_distribution.png";
+            mode = "";
+            break;
+        case SHAPIRO_WILK_TEST:
+            // Shapiro-Wilk - запускаем Python скрипт для графиков
+            pythonScript = rootPath + "/python/plot_shapiro_wilk.py";
+            plotFile = rootPath + "/output/plot_shapiro_wilk_qq.png";
+            mode = "";
+            break;
+        case WILCOXON_RANKSUM_TEST:
+            // Wilcoxon - запускаем Python скрипт для графиков
+            pythonScript = rootPath + "/python/plot_wilcoxon_ranksum.py";
+            plotFile = rootPath + "/output/plot_wilcoxon_normal_approx.png";
+            mode = "";
+            break;
         default:
             // Для других типов анализа использовать встроенный график
             if (!currentData.empty() && chartViewer) {
@@ -519,23 +580,16 @@ void MainWindow::onResultsReady(const QString& results)
             return;
     }
 
-    // Удаляем старый график если существует (кроме критерия Стьюдента)
-    // Для критерия Стьюдента удаляем все три возможных файла
-    if (currentAnalysisType == STUDENT_TEST) {
-        QStringList filesToRemove;
-        filesToRemove << (rootPath + "/output/plot_student_auto.png");
-        filesToRemove << (rootPath + "/output/plot_student_equal_var.png");
-        filesToRemove << (rootPath + "/output/plot_student_unequal_var.png");
-        for (const QString& file : filesToRemove) {
-            if (QFile::exists(file)) {
-                QFile::remove(file);
-                qDebug() << "Deleted old plot file:" << file;
-            }
-        }
-    } else if (QFile::exists(plotFile)) {
+    // Удаляем старый график если существует
+    if (QFile::exists(plotFile)) {
         QFile::remove(plotFile);
         qDebug() << "Deleted old plot file:" << plotFile;
     }
+
+    qDebug() << "=== Python Script Info ===";
+    qDebug() << "Analysis type:" << currentAnalysisType;
+    qDebug() << "Python script:" << pythonScript;
+    qDebug() << "Plot file:" << plotFile;
 
     // Запускаем Python скрипт
     QString pythonExe = rootPath + "/python/venv/bin/python3";
@@ -565,9 +619,12 @@ void MainWindow::onResultsReady(const QString& results)
         }
         arguments << percentilesFile;
         arguments << plotFile;
-    } else if (currentAnalysisType == STUDENT_TEST) {
-        // plot_t_distribution.py запускается без аргументов, читает confidence_intervals.txt
-        // и создает 3 графика автоматически
+    } else if (currentAnalysisType == STUDENT_TEST ||
+               currentAnalysisType == ANOVA_TEST ||
+               currentAnalysisType == SHAPIRO_WILK_TEST ||
+               currentAnalysisType == WILCOXON_RANKSUM_TEST) {
+        // Эти скрипты запускаются без аргументов
+        // Они читают данные из стандартных файлов результатов
         // Не передаем аргументы
     } else {
         // Для MLE/MLS: script mode
@@ -602,14 +659,13 @@ void MainWindow::onResultsReady(const QString& results)
     int exitCode = process.exitCode();
     qDebug() << "Python exit code:" << exitCode;
 
-    // Для критерия Стьюдента проверяем все три возможных файла
+    // Для критерия Стьюдента ищем первый существующий файл
     if (currentAnalysisType == STUDENT_TEST) {
         QStringList possiblePlots;
         possiblePlots << (rootPath + "/output/plot_student_auto.png");
         possiblePlots << (rootPath + "/output/plot_student_equal_var.png");
         possiblePlots << (rootPath + "/output/plot_student_unequal_var.png");
 
-        // Ищем первый существующий файл
         plotFile = "";
         for (const QString& file : possiblePlots) {
             if (QFile::exists(file)) {
